@@ -1,0 +1,263 @@
+@import "tailwindcss";
+
+/* ─── Civic Design System ─────────────────────────────────────────────── */
+
+:root {
+  /* Surfaces */
+  --background:    #f8fafc;          /* slate-50  */
+  --surface:       #ffffff;
+  --surface-raised: #ffffff;
+
+  /* Borders */
+  --border:        #e2e8f0;          /* slate-200 */
+  --border-strong: #cbd5e1;          /* slate-300 */
+
+  /* Text */
+  --text-primary:  #0f172a;          /* slate-900 */
+  --text-secondary:#475569;          /* slate-600 */
+  --text-muted:    #94a3b8;          /* slate-400 */
+
+  /* Brand — authoritative indigo */
+  --primary:       #1d4ed8;          /* blue-700  */
+  --primary-dark:  #1e40af;          /* blue-800  */
+  --primary-light: #eff6ff;          /* blue-50   */
+  --primary-text:  #1e3a8a;          /* blue-900  */
+
+  /* India saffron accent */
+  --accent:        #ea580c;          /* orange-600*/
+  --accent-light:  #fff7ed;          /* orange-50 */
+
+  /* Status */
+  --success:       #16a34a;          /* green-600 */
+  --success-light: #f0fdf4;
+  --warning:       #d97706;          /* amber-600 */
+
+  /* Nav */
+  --nav-bg:        rgba(255,255,255,0.95);
+  --nav-border:    #e2e8f0;
+
+  /* Shadows — flat / minimal */
+  --shadow-sm:     0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:     0 4px 12px rgba(0,0,0,0.07);
+  --shadow-hover:  0 6px 20px rgba(29,78,216,0.12);
+
+  /* Card */
+  --card:          #ffffff;
+  --card-border:   #e2e8f0;
+
+  /* Muted bg — for chips, inputs */
+  --muted-bg:      #f1f5f9;
+  --muted:         #64748b;
+  --foreground:    #0f172a;
+}
+
+/* Dark mode — kept clean, not neon */
+.dark {
+  --background:    #0c1220;
+  --surface:       #111827;
+  --surface-raised:#1e293b;
+  --border:        #1e293b;
+  --border-strong: #334155;
+  --text-primary:  #f1f5f9;
+  --text-secondary:#94a3b8;
+  --text-muted:    #64748b;
+  --primary:       #3b82f6;
+  --primary-dark:  #2563eb;
+  --primary-light: #1e3a8a22;
+  --primary-text:  #bfdbfe;
+  --accent:        #f97316;
+  --accent-light:  #431407;
+  --success:       #22c55e;
+  --success-light: #052e16;
+  --warning:       #f59e0b;
+  --nav-bg:        rgba(12,18,32,0.95);
+  --nav-border:    #1e293b;
+  --shadow-sm:     0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md:     0 4px 16px rgba(0,0,0,0.4);
+  --shadow-hover:  0 6px 20px rgba(59,130,246,0.15);
+  --card:          #111827;
+  --card-border:   #1e293b;
+  --muted-bg:      #1e293b;
+  --muted:         #94a3b8;
+  --foreground:    #f1f5f9;
+}
+
+/* ─── Reset ────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--background);
+  color: var(--text-primary);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+/* ─── Scrollbar ────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+/* ─── Civic Card ───────────────────────────────────────────────────────── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.card:hover {
+  box-shadow: var(--shadow-hover);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+/* ─── Civic Button ─────────────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 8px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+  font-family: inherit;
+}
+.btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 8px;
+  border: 1.5px solid var(--primary);
+  background: transparent;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+.btn-outline:hover {
+  background: var(--primary-light);
+}
+
+/* ─── Civic Input ──────────────────────────────────────────────────────── */
+.civic-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.civic-input:focus { border-color: var(--primary); }
+.civic-input::placeholder { color: var(--text-muted); }
+
+/* ─── Stat number ──────────────────────────────────────────────────────── */
+.stat-value {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 900;
+  color: var(--primary);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.stat-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+}
+
+/* ─── Section label ────────────────────────────────────────────────────── */
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+/* ─── Animations ───────────────────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up { animation: fadeInUp 0.4s ease forwards; }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-16px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(-16px) scale(0.97); }
+}
+.toast-in  { animation: toastIn  0.3s ease forwards; }
+.toast-out { animation: toastOut 0.25s ease forwards; }
+
+@keyframes bounceDot {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.4; }
+  40%           { transform: scale(1); opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.slide-in-right { animation: slideInRight 0.3s ease forwards; }
+
+/* ─── Modal overlay ────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  padding: 16px;
+}
+
+/* ─── Indigo header stripe (ECI branding) ──────────────────────────────── */
+.eci-stripe {
+  background: linear-gradient(90deg, #1d4ed8 0%, #1e40af 60%, #ea580c 100%);
+}
+
+/* ─── Responsive helpers ───────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .hide-mobile { display: none !important; }
+}
+@media (min-width: 641px) {
+  .hide-desktop { display: none !important; }
+}
