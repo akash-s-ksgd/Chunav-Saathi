@@ -103,7 +103,7 @@ export function ElectionTimeline() {
                     justifyContent: "center",
                     flexShrink: 0,
                     transition: "all 0.2s ease",
-                    boxShadow: isActive ? `0 0 0 4px ${phase.accentColor}18` : "none",
+                    boxShadow: isActive ? `0 0 15px ${phase.accentColor}40` : "none",
                   }}
                 >
                   {isDone
@@ -116,12 +116,13 @@ export function ElectionTimeline() {
                 {!isLast && (
                   <div
                     style={{
-                      width: "2px",
+                      width: "3px",
                       flex: 1,
-                      minHeight: "24px",
-                      background: isDone ? phase.accentColor : "var(--border)",
+                      minHeight: "28px",
+                      background: isDone ? phase.accentColor : "linear-gradient(to bottom, var(--primary), var(--border))",
                       margin: "4px 0",
                       transition: "background 0.3s ease",
+                      borderRadius: "2px",
                     }}
                   />
                 )}

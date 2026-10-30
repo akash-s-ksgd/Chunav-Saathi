@@ -1,19 +1,31 @@
 "use client";
 
-import { useTheme } from "next-themes";
+import { useTheme } from "@/context/ThemeContext";
 import { useEffect, useState } from "react";
-import { Sun, Moon, Monitor, Vote, Globe, LogIn, UserCircle2, CheckCircle2 } from "lucide-react";
+import { Sun, Moon, Vote, Globe, LogIn, UserCircle2, CheckCircle2, Menu, X, LogOut, BarChart3, FileText, LayoutDashboard, Home, User } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { LoginModal } from "@/components/LoginModal";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+const NAV_LINKS = [
+  { href: "/", labelKey: "navHome", Icon: Home },
+  { href: "/dashboard", labelKey: "navDashboard", Icon: LayoutDashboard, auth: true },
+  { href: "/analytics", labelKey: "navAnalytics", Icon: BarChart3 },
+  { href: "/complaints", labelKey: "navComplaints", Icon: FileText, auth: true },
+  { href: "/profile", labelKey: "navProfile", Icon: User, auth: true },
+];
 
 export function Navbar() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
-  const [loggedInUser, setLoggedInUser] = useState(null);
+  const [mobileMenu, setMobileMenu] = useState(false);
+  const { loggedInUser, logout } = useAuth();
   const { lang, setLang, t, translations } = useLanguage();
+  const pathname = usePathname();
 
   useEffect(() => {
     setMounted(true);
@@ -22,13 +34,15 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const nextTheme = () => {
-    const cycle = { light: "dark", dark: "system", system: "light" };
-    setTheme(cycle[theme] || "dark");
-  };
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenu(false);
+  }, [pathname]);
+
+  const nextTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
   const themeIcon = mounted
-    ? { light: <Sun size={16} />, dark: <Moon size={16} />, system: <Monitor size={16} /> }[theme] ?? <Sun size={16} />
+    ? theme === "dark" ? <Moon size={16} /> : <Sun size={16} />
     : null;
 
   const langOptions = Object.values(translations).map((tr) => ({
@@ -37,8 +51,10 @@ export function Navbar() {
   }));
 
   const handleLoginSuccess = (user) => {
-    setLoggedInUser(user);
+    // Already handled by AuthContext
   };
+
+  const visibleLinks = NAV_LINKS.filter(l => !l.auth || loggedInUser);
 
   return (
     <>
@@ -117,10 +133,35 @@ export function Navbar() {
             </div>
           </Link>
 
+          {/* Desktop Navigation Links */}
+          <div className="hide-mobile" style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+            {visibleLinks.map(({ href, labelKey, Icon }) => {
+              const isActive = pathname === href;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "5px",
+                    padding: "7px 12px", borderRadius: "7px",
+                    fontSize: "0.8rem", fontWeight: isActive ? 700 : 500,
+                    color: isActive ? "var(--primary)" : "var(--text-secondary)",
+                    background: isActive ? "var(--primary-light)" : "transparent",
+                    textDecoration: "none", transition: "all 0.15s",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <Icon size={14} />
+                  {t[labelKey]}
+                </Link>
+              );
+            })}
+          </div>
+
           {/* Controls */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "nowrap" }}>
             {/* Language switcher */}
-            <div style={{ display: "flex", gap: "2px", alignItems: "center" }}>
+            <div className="hide-mobile" style={{ display: "flex", gap: "2px", alignItems: "center" }}>
               <Globe size={13} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
               {langOptions.map((option) => (
                 <button
@@ -150,7 +191,8 @@ export function Navbar() {
               <button
                 id="theme-toggle"
                 onClick={nextTheme}
-                title={`Theme: ${theme}`}
+                title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+                aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
                 style={{
                   width: "34px",
                   height: "34px",
@@ -182,52 +224,138 @@ export function Navbar() {
 
             {/* Login / User button */}
             {loggedInUser ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "6px 12px",
-                  borderRadius: "8px",
-                  border: "1.5px solid var(--success)",
-                  background: "var(--success-light)",
-                  fontSize: "0.78rem",
-                  fontWeight: 600,
-                  color: "var(--success)",
-                }}
-              >
-                <CheckCircle2 size={14} />
-                <span className="hide-mobile">Verified Citizen</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <div
+                  style={{
+                    display: "flex", alignItems: "center", gap: "6px",
+                    padding: "6px 12px", borderRadius: "8px",
+                    border: "1.5px solid var(--success)",
+                    background: "var(--success-light)",
+                    fontSize: "0.78rem", fontWeight: 600,
+                    color: "var(--success)",
+                  }}
+                >
+                  <CheckCircle2 size={14} />
+                  <span className="hide-mobile">{loggedInUser.name || "Verified Citizen"}</span>
+                  {loggedInUser.role === "admin" && (
+                    <span style={{
+                      background: "var(--primary)", color: "white",
+                      padding: "1px 6px", borderRadius: "4px",
+                      fontSize: "0.6rem", fontWeight: 700,
+                    }}>
+                      {t.admin}
+                    </span>
+                  )}
+                </div>
+                <button
+                  id="logout-btn"
+                  onClick={logout}
+                  title={t.navLogout}
+                  style={{
+                    width: "34px", height: "34px", borderRadius: "8px",
+                    border: "1.5px solid var(--border)", background: "transparent",
+                    color: "var(--text-secondary)", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "all 0.15s ease", flexShrink: 0,
+                  }}
+                >
+                  <LogOut size={15} />
+                </button>
               </div>
             ) : (
               <button
                 id="login-btn"
                 onClick={() => setShowLogin(true)}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "7px",
-                  padding: "8px 16px",
-                  borderRadius: "8px",
-                  border: "none",
-                  background: "#1d4ed8",
-                  color: "white",
-                  fontWeight: 600,
-                  fontSize: "0.83rem",
-                  cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: "7px",
+                  padding: "8px 16px", borderRadius: "8px",
+                  border: "none", background: "#1d4ed8",
+                  color: "white", fontWeight: 600,
+                  fontSize: "0.83rem", cursor: "pointer",
                   transition: "background 0.15s ease",
-                  flexShrink: 0,
-                  fontFamily: "inherit",
+                  flexShrink: 0, fontFamily: "inherit",
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "#1e40af")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "#1d4ed8")}
               >
                 <LogIn size={15} />
-                <span className="hide-mobile">Login / Sign In</span>
+                <span className="hide-mobile">{t.navLogin}</span>
               </button>
             )}
+
+            {/* Mobile menu toggle */}
+            <button
+              id="mobile-menu-btn"
+              className="hide-desktop"
+              onClick={() => setMobileMenu(!mobileMenu)}
+              style={{
+                width: "34px", height: "34px", borderRadius: "8px",
+                border: "1.5px solid var(--border)", background: "transparent",
+                color: "var(--text-secondary)", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              {mobileMenu ? <X size={16} /> : <Menu size={16} />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenu && (
+          <div
+            className="fade-in-up hide-desktop"
+            style={{
+              borderTop: "1px solid var(--border)",
+              background: "var(--surface)",
+              padding: "12px 24px 16px",
+            }}
+          >
+            {/* Mobile nav links */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginBottom: "12px" }}>
+              {visibleLinks.map(({ href, labelKey, Icon }) => {
+                const isActive = pathname === href;
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "8px",
+                      padding: "10px 14px", borderRadius: "8px",
+                      fontSize: "0.88rem", fontWeight: isActive ? 700 : 500,
+                      color: isActive ? "var(--primary)" : "var(--text-primary)",
+                      background: isActive ? "var(--primary-light)" : "transparent",
+                      textDecoration: "none",
+                    }}
+                  >
+                    <Icon size={16} />
+                    {t[labelKey]}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Mobile language switcher */}
+            <div style={{ display: "flex", gap: "4px", alignItems: "center", paddingTop: "8px", borderTop: "1px solid var(--border)" }}>
+              <Globe size={13} style={{ color: "var(--text-muted)" }} />
+              {langOptions.map((option) => (
+                <button
+                  key={option.code}
+                  onClick={() => setLang(option.code)}
+                  style={{
+                    padding: "5px 12px", borderRadius: "6px", fontSize: "0.78rem",
+                    fontWeight: 600,
+                    border: lang === option.code ? "1.5px solid var(--primary)" : "1.5px solid var(--border)",
+                    background: lang === option.code ? "var(--primary-light)" : "transparent",
+                    color: lang === option.code ? "var(--primary)" : "var(--text-secondary)",
+                    cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Login Modal */}

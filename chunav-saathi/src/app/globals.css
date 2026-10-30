@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* ─── Civic Design System ─────────────────────────────────────────────── */
 
@@ -17,20 +18,24 @@
   --text-secondary:#475569;          /* slate-600 */
   --text-muted:    #94a3b8;          /* slate-400 */
 
-  /* Brand — authoritative indigo */
-  --primary:       #1d4ed8;          /* blue-700  */
-  --primary-dark:  #1e40af;          /* blue-800  */
-  --primary-light: #eff6ff;          /* blue-50   */
-  --primary-text:  #1e3a8a;          /* blue-900  */
+  /* Brand — Saffron/Sovereign Accent */
+  --primary:       #ea580c;          /* orange-600 */
+  --primary-dark:  #c2410c;          /* orange-700 */
+  --primary-light: #fff7ed;          /* orange-50  */
+  --primary-text:  #9a3412;          /* orange-800 */
 
-  /* India saffron accent */
-  --accent:        #ea580c;          /* orange-600*/
-  --accent-light:  #fff7ed;          /* orange-50 */
+  /* Ashoka Navy Blue backgrounds */
+  --navy:          #0a1128;
+  --navy-light:    #121d3f;
+
+  /* India secondary accent */
+  --accent:        #1d4ed8;          /* blue-700   */
+  --accent-light:  #eff6ff;          /* blue-50    */
 
   /* Status */
-  --success:       #16a34a;          /* green-600 */
-  --success-light: #f0fdf4;
-  --warning:       #d97706;          /* amber-600 */
+  --success:       #10b981;          /* emerald-500 */
+  --success-light: #ecfdf5;          /* emerald-50  */
+  --warning:       #d97706;          /* amber-600  */
 
   /* Nav */
   --nav-bg:        rgba(255,255,255,0.95);
@@ -39,7 +44,7 @@
   /* Shadows — flat / minimal */
   --shadow-sm:     0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
   --shadow-md:     0 4px 12px rgba(0,0,0,0.07);
-  --shadow-hover:  0 6px 20px rgba(29,78,216,0.12);
+  --shadow-hover:  0 6px 20px rgba(234,88,12,0.12);
 
   /* Card */
   --card:          #ffffff;
@@ -51,31 +56,33 @@
   --foreground:    #0f172a;
 }
 
-/* Dark mode — kept clean, not neon */
+/* Dark mode — optimized for high contrast */
 .dark {
-  --background:    #0c1220;
-  --surface:       #111827;
+  --background:    #0a1128;
+  --surface:       #121d3f;
   --surface-raised:#1e293b;
   --border:        #1e293b;
   --border-strong: #334155;
   --text-primary:  #f1f5f9;
   --text-secondary:#94a3b8;
   --text-muted:    #64748b;
-  --primary:       #3b82f6;
-  --primary-dark:  #2563eb;
-  --primary-light: #1e3a8a22;
-  --primary-text:  #bfdbfe;
-  --accent:        #f97316;
-  --accent-light:  #431407;
-  --success:       #22c55e;
-  --success-light: #052e16;
+  --primary:       #f97316;          /* orange-500 */
+  --primary-dark:  #ea580c;          /* orange-600 */
+  --primary-light: #ea580c22;
+  --primary-text:  #fdba74;          /* orange-300 */
+  --navy:          #0a1128;
+  --navy-light:    #121d3f;
+  --accent:        #3b82f6;
+  --accent-light:  #1e3a8a22;
+  --success:       #10b981;
+  --success-light: #064e3b;
   --warning:       #f59e0b;
-  --nav-bg:        rgba(12,18,32,0.95);
+  --nav-bg:        rgba(10,17,40,0.95);
   --nav-border:    #1e293b;
   --shadow-sm:     0 1px 3px rgba(0,0,0,0.3);
   --shadow-md:     0 4px 16px rgba(0,0,0,0.4);
-  --shadow-hover:  0 6px 20px rgba(59,130,246,0.15);
-  --card:          #111827;
+  --shadow-hover:  0 6px 20px rgba(249,115,22,0.15);
+  --card:          #121d3f;
   --card-border:   #1e293b;
   --muted-bg:      #1e293b;
   --muted:         #94a3b8;
@@ -83,7 +90,7 @@
 }
 
 /* ─── Reset ────────────────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 
 body {
@@ -110,7 +117,7 @@ body {
 .card {
   background: var(--card);
   border: 1px solid var(--card-border);
-  border-radius: 12px;
+  border-radius: 1rem;
   box-shadow: var(--shadow-sm);
   transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
@@ -235,6 +242,12 @@ body {
   to   { opacity: 1; transform: translateX(0); }
 }
 .slide-in-right { animation: slideInRight 0.3s ease forwards; }
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow { animation: spinSlow 40s linear infinite; }
 
 /* ─── Modal overlay ────────────────────────────────────────────────────── */
 .modal-overlay {

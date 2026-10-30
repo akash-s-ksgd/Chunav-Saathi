@@ -1,0 +1,180 @@
+import { getDb } from "@/lib/mongodb";
+import { getUserFromRequest } from "@/lib/auth";
+
+// GET /api/analytics — Aggregated analytics data with filters
+export async function GET(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const db = await getDb();
+
+    // ── Build match query from filters ──────────────────────────
+    const match = {};
+    const state = searchParams.get("state");
+    const category = searchParams.get("category");
+    const status = searchParams.get("status");
+    const priority = searchParams.get("priority");
+    const dateFrom = searchParams.get("dateFrom");
+    const dateTo = searchParams.get("dateTo");
+    const userId = searchParams.get("userId");
+
+    if (state && state !== "all") match.state = state;
+    if (category && category !== "all") match.category = category;
+    if (status && status !== "all") match.status = status;
+    if (priority && priority !== "all") match.priority = priority;
+    if (userId) match.userId = userId;
+
+    if (dateFrom || dateTo) {
+      match.createdAt = {};
+      if (dateFrom) match.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) match.createdAt.$lte = new Date(dateTo + "T23:59:59Z");
+    }
+
+    // ── Run all aggregations in parallel ────────────────────────
+    const [
+      totalComplaints,
+      statusBreakdown,
+      categoryBreakdown,
+      stateBreakdown,
+      priorityBreakdown,
+      monthlyTrend,
+      recentComplaints,
+      topUsers,
+      avgResolutionTime,
+      boothStats,
+      electionStats,
+    ] = await Promise.all([
+      // 1. Total count
+      db.collection("complaints").countDocuments(match),
+
+      // 2. Status breakdown
+      db.collection("complaints").aggregate([
+        { $match: match },
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]).toArray(),
+
+      // 3. Category breakdown
+      db.collection("complaints").aggregate([
+        { $match: match },
+        { $group: { _id: "$category", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]).toArray(),
+
+      // 4. State breakdown
+      db.collection("complaints").aggregate([
+        { $match: match },
+        { $group: { _id: "$state", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]).toArray(),
+
+      // 5. Priority breakdown
+      db.collection("complaints").aggregate([
+        { $match: match },
+        { $group: { _id: "$priority", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]).toArray(),
+
+      // 6. Monthly trend
+      db.collection("complaints").aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { "_id.year": 1, "_id.month": 1 } },
+      ]).toArray(),
+
+      // 7. Recent complaints
+      db.collection("complaints")
+        .find(match)
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .toArray(),
+
+      // 8. Top users by complaint count
+      db.collection("complaints").aggregate([
+        { $match: match },
+        { $group: { _id: "$userName", userId: { $first: "$userId" }, count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]).toArray(),
+
+      // 9. Average resolution time (for resolved complaints)
+      db.collection("complaints").aggregate([
+        { $match: { ...match, status: "Resolved", resolvedAt: { $ne: null } } },
+        {
+          $project: {
+            resolutionDays: {
+              $divide: [
+                { $subtract: ["$resolvedAt", "$createdAt"] },
+                1000 * 60 * 60 * 24,
+              ],
+            },
+          },
+        },
+        { $group: { _id: null, avgDays: { $avg: "$resolutionDays" } } },
+      ]).toArray(),
+
+      // 10. Booth statistics
+      db.collection("booths").aggregate([
+        {
+          $group: {
+            _id: null,
+            totalBooths: { $sum: 1 },
+            accessibleBooths: { $sum: { $cond: ["$isAccessible", 1, 0] } },
+            avgCapacity: { $avg: "$capacity" },
+          },
+        },
+      ]).toArray(),
+
+      // 11. Election data summary
+      db.collection("elections").find({}).toArray(),
+    ]);
+
+    // ── Format response ─────────────────────────────────────────
+    const resolved = statusBreakdown.find(s => s._id === "Resolved")?.count || 0;
+    const pending = statusBreakdown.find(s => s._id === "Pending")?.count || 0;
+    const inProgress = statusBreakdown.find(s => s._id === "In Progress")?.count || 0;
+
+    return Response.json({
+      kpis: {
+        totalComplaints,
+        resolvedCount: resolved,
+        pendingCount: pending,
+        inProgressCount: inProgress,
+        resolutionRate: totalComplaints > 0 ? ((resolved / totalComplaints) * 100).toFixed(1) : 0,
+        avgResolutionDays: avgResolutionTime[0]?.avgDays?.toFixed(1) || "N/A",
+        totalBooths: boothStats[0]?.totalBooths || 0,
+        accessibleBooths: boothStats[0]?.accessibleBooths || 0,
+      },
+      charts: {
+        statusBreakdown: statusBreakdown.map(s => ({ label: s._id, value: s.count })),
+        categoryBreakdown: categoryBreakdown.map(c => ({ label: c._id, value: c.count })),
+        stateBreakdown: stateBreakdown.map(s => ({ label: s._id, value: s.count })),
+        priorityBreakdown: priorityBreakdown.map(p => ({ label: p._id, value: p.count })),
+        monthlyTrend: monthlyTrend.map(m => ({
+          label: `${m._id.year}-${String(m._id.month).padStart(2, "0")}`,
+          value: m.count,
+        })),
+      },
+      topUsers: topUsers.map(u => ({ name: u._id, userId: u.userId, count: u.count })),
+      recentComplaints,
+      elections: electionStats,
+      filters: {
+        states: await db.collection("complaints").distinct("state"),
+        categories: await db.collection("complaints").distinct("category"),
+        statuses: await db.collection("complaints").distinct("status"),
+        priorities: await db.collection("complaints").distinct("priority"),
+      },
+    });
+  } catch (error) {
+    console.error("Analytics error:", error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
