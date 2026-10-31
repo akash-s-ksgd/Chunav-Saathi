@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -20,6 +20,7 @@ export default function ComplaintsPage() {
 
   const [complaints, setComplaints] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [fetchRequest, setFetchRequest] = useState({ page: 1, revision: 0 });
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -29,7 +30,7 @@ export default function ComplaintsPage() {
     if (!authLoading && !loggedInUser) router.push("/");
   }, [authLoading, loggedInUser, router]);
 
-  const fetchComplaints = async (page = 1) => {
+  const fetchComplaints = useEffectEvent(async (page = 1) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), limit: "10" });
@@ -43,14 +44,19 @@ export default function ComplaintsPage() {
       setPagination(data.pagination || { page: 1, totalPages: 1, total: 0 });
     } catch {}
     setLoading(false);
-  };
+  });
 
   useEffect(() => {
-    if (loggedInUser) fetchComplaints();
-  }, [loggedInUser]);
+    if (!loggedInUser) return;
+    const requestId = window.setTimeout(() => fetchComplaints(fetchRequest.page), 0);
+    return () => window.clearTimeout(requestId);
+  }, [loggedInUser, fetchRequest]);
 
-  const handleSearch = () => fetchComplaints(1);
-  const handleFilter = () => fetchComplaints(1);
+  const requestComplaints = (page = 1) => {
+    setFetchRequest((current) => ({ page, revision: current.revision + 1 }));
+  };
+  const handleSearch = () => requestComplaints(1);
+  const handleFilter = () => requestComplaints(1);
 
   if (authLoading || !loggedInUser) {
     return (
@@ -182,7 +188,7 @@ export default function ComplaintsPage() {
             <button
               className="btn-outline"
               disabled={pagination.page <= 1}
-              onClick={() => fetchComplaints(pagination.page - 1)}
+              onClick={() => requestComplaints(pagination.page - 1)}
               style={{ padding: "8px 12px", opacity: pagination.page <= 1 ? 0.5 : 1 }}
             >
               <ChevronLeft size={16} />
@@ -193,7 +199,7 @@ export default function ComplaintsPage() {
             <button
               className="btn-outline"
               disabled={pagination.page >= pagination.totalPages}
-              onClick={() => fetchComplaints(pagination.page + 1)}
+              onClick={() => requestComplaints(pagination.page + 1)}
               style={{ padding: "8px 12px", opacity: pagination.page >= pagination.totalPages ? 0.5 : 1 }}
             >
               <ChevronRight size={16} />

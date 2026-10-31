@@ -50,7 +50,7 @@ export default function HomePage() {
           <div style={{ position: "relative", zIndex: 10, maxWidth: "1280px", margin: "0 auto", padding: "54px 20px 48px" }}>
             <div className="section-label" style={{ marginBottom: "16px", background: "rgba(255,255,255,0.1)", color: "#f8fafc", border: "1px solid rgba(255,255,255,0.2)" }}>
               <Shield size={12} />
-              Election Commission of India · Official Education Platform
+              Independent student project · Not affiliated with ECI
             </div>
 
             <h1 style={{
@@ -156,7 +156,7 @@ export default function HomePage() {
                 <Vote size={13} color="white" />
               </div>
               <span style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--text-primary)" }}>Chunav Saathi</span>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.78rem" }}>· Groq AI · ECI Awareness Platform</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.78rem" }}>· Groq AI · Independent civic information</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.78rem", color: "var(--text-secondary)" }}>
               <Phone size={12} />

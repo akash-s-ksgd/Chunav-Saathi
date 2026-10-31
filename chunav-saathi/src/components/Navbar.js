@@ -19,31 +19,23 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
-  const [mobileMenu, setMobileMenu] = useState(false);
+  const [mobileMenuState, setMobileMenuState] = useState({ open: false, pathname: null });
   const { loggedInUser, logout } = useAuth();
   const { lang, setLang, t, translations } = useLanguage();
   const pathname = usePathname();
+  const mobileMenu = mobileMenuState.open && mobileMenuState.pathname === pathname;
 
   useEffect(() => {
-    setMounted(true);
     const onScroll = () => setScrolled(window.scrollY > 8);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileMenu(false);
-  }, [pathname]);
-
   const nextTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
-  const themeIcon = mounted
-    ? theme === "dark" ? <Moon size={16} /> : <Sun size={16} />
-    : null;
+  const themeIcon = theme === "dark" ? <Moon size={16} /> : <Sun size={16} />;
 
   const langOptions = Object.values(translations).map((tr) => ({
     code: tr.code,
@@ -58,7 +50,7 @@ export function Navbar() {
 
   return (
     <>
-      {/* ── ECI top-bar stripe ─────────────────────────────────────── */}
+      {/* ── Project notice ────────────────────────────────────────── */}
       <div
         style={{
           background: "#1d4ed8",
@@ -75,7 +67,7 @@ export function Navbar() {
           zIndex: 101,
         }}
       >
-        <span className="hide-mobile">Election Commission of India · Official Voter Education Portal</span>
+        <span className="hide-mobile">Independent student project · Not affiliated with ECI</span>
         <span>Helpline: <strong style={{ color: "white" }}>1950</strong> · voters.eci.gov.in</span>
       </div>
 
@@ -187,8 +179,7 @@ export function Navbar() {
             </div>
 
             {/* Theme toggle */}
-            {mounted && (
-              <button
+            <button
                 id="theme-toggle"
                 onClick={nextTheme}
                 title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
@@ -219,8 +210,7 @@ export function Navbar() {
                 }}
               >
                 {themeIcon}
-              </button>
-            )}
+            </button>
 
             {/* Login / User button */}
             {loggedInUser ? (
@@ -287,7 +277,7 @@ export function Navbar() {
             <button
               id="mobile-menu-btn"
               className="hide-desktop"
-              onClick={() => setMobileMenu(!mobileMenu)}
+              onClick={() => setMobileMenuState({ open: !mobileMenu, pathname })}
               style={{
                 width: "34px", height: "34px", borderRadius: "8px",
                 border: "1.5px solid var(--border)", background: "transparent",

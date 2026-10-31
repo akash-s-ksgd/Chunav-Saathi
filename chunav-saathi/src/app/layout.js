@@ -4,15 +4,15 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import { Navbar } from "@/components/Navbar";
 
 export const metadata = {
-  title: "Chunav Saathi | Your Election Guide by ECI",
+  title: "Chunav Saathi | Independent Election Information",
   description:
-    "Chunav Saathi is your interactive guide to the Election Commission of India. Register to vote, track timelines, and get AI-powered answers on voter registration, EPIC IDs, and more.",
+    "Chunav Saathi is an independent student project with election information, voter-service links, timelines, and an AI assistant. It is not affiliated with the Election Commission of India.",
   keywords:
     "Election Commission India, voter registration, EPIC card, Form 6, vote, ECI, election 2024, Chunav Saathi",
   openGraph: {
-    title: "Chunav Saathi | Your Election Guide",
+    title: "Chunav Saathi | Independent Election Information",
     description:
-      "Interactive ECI education platform with AI assistant, election timelines, and voter tools.",
+      "An independent student project with election information, official-service links, timelines, and voter tools.",
     type: "website",
   },
 };

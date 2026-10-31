@@ -48,22 +48,16 @@ export default function NewComplaintPage() {
   const [category, setCategory] = useState("");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
-  const [state, setState] = useState("");
-  const [district, setDistrict] = useState("");
+  const [stateOverride, setStateOverride] = useState(null);
+  const [districtOverride, setDistrictOverride] = useState(null);
   const [constituency, setConstituency] = useState("");
   const [priority, setPriority] = useState("");
+  const state = stateOverride ?? loggedInUser?.state ?? "";
+  const district = districtOverride ?? loggedInUser?.district ?? "";
 
   useEffect(() => {
     if (!authLoading && !loggedInUser) router.push("/");
   }, [authLoading, loggedInUser, router]);
-
-  // Pre-fill state/district from user profile
-  useEffect(() => {
-    if (loggedInUser) {
-      if (loggedInUser.state) setState(loggedInUser.state);
-      if (loggedInUser.district) setDistrict(loggedInUser.district);
-    }
-  }, [loggedInUser]);
 
   const validate = () => {
     const errors = {};
@@ -252,7 +246,7 @@ export default function NewComplaintPage() {
                   <select
                     id="complaint-state"
                     value={state}
-                    onChange={(e) => { setState(e.target.value); setDistrict(""); }}
+                    onChange={(e) => { setStateOverride(e.target.value); setDistrictOverride(""); }}
                     style={{ ...inputStyle(fieldErrors.state), appearance: "none", paddingRight: "28px", cursor: "pointer" }}
                   >
                     <option value="">{t.selectState}</option>
@@ -268,7 +262,7 @@ export default function NewComplaintPage() {
                   <select
                     id="complaint-district"
                     value={district}
-                    onChange={(e) => setDistrict(e.target.value)}
+                    onChange={(e) => setDistrictOverride(e.target.value)}
                     disabled={!state}
                     style={{ ...inputStyle(fieldErrors.district), appearance: "none", paddingRight: "28px", cursor: "pointer" }}
                   >

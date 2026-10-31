@@ -1,27 +1,50 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useSyncExternalStore, useEffect, useCallback } from "react";
 
 const AuthContext = createContext(null);
+const emptyAuthSnapshot = { loggedInUser: null, token: null, loading: true };
+let authSnapshot = emptyAuthSnapshot;
+const authListeners = new Set();
+
+function publishAuthSnapshot(snapshot) {
+  authSnapshot = snapshot;
+  authListeners.forEach((listener) => listener());
+}
+
+function subscribeToAuth(listener) {
+  authListeners.add(listener);
+  return () => authListeners.delete(listener);
+}
+
+function getAuthSnapshot() {
+  return authSnapshot;
+}
 
 export function AuthProvider({ children }) {
-  const [loggedInUser, setLoggedInUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { loggedInUser, token, loading } = useSyncExternalStore(
+    subscribeToAuth,
+    getAuthSnapshot,
+    () => emptyAuthSnapshot
+  );
 
   // Restore auth state from localStorage on mount
   useEffect(() => {
+    let restoredUser = null;
+    let restoredToken = null;
     try {
-      const savedToken = localStorage.getItem("chunav-token");
+      restoredToken = localStorage.getItem("chunav-token");
       const savedUser = localStorage.getItem("chunav-user");
-      if (savedToken && savedUser) {
-        setToken(savedToken);
-        setLoggedInUser(JSON.parse(savedUser));
+      if (restoredToken && savedUser) {
+        restoredUser = JSON.parse(savedUser);
+      } else {
+        restoredToken = null;
       }
     } catch {
-      // ignore parse errors
+      restoredToken = null;
+      restoredUser = null;
     }
-    setLoading(false);
+    publishAuthSnapshot({ loggedInUser: restoredUser, token: restoredToken, loading: false });
   }, []);
 
   // Helper to make authenticated API requests
@@ -46,10 +69,9 @@ export function AuthProvider({ children }) {
     if (!res.ok) {
       throw new Error(data.error || "Login failed");
     }
-    setToken(data.token);
-    setLoggedInUser(data.user);
     localStorage.setItem("chunav-token", data.token);
     localStorage.setItem("chunav-user", JSON.stringify(data.user));
+    publishAuthSnapshot({ loggedInUser: data.user, token: data.token, loading: false });
     return data;
   }, []);
 
@@ -63,23 +85,25 @@ export function AuthProvider({ children }) {
     if (!res.ok) {
       throw new Error(data.error || "Registration failed");
     }
-    setToken(data.token);
-    setLoggedInUser(data.user);
     localStorage.setItem("chunav-token", data.token);
     localStorage.setItem("chunav-user", JSON.stringify(data.user));
+    publishAuthSnapshot({ loggedInUser: data.user, token: data.token, loading: false });
     return data;
   }, []);
 
   const logout = useCallback(() => {
-    setLoggedInUser(null);
-    setToken(null);
     localStorage.removeItem("chunav-token");
     localStorage.removeItem("chunav-user");
+    publishAuthSnapshot({ loggedInUser: null, token: null, loading: false });
   }, []);
 
   // Legacy method for backwards compatibility (used by existing LoginModal)
   const loginLegacy = useCallback((user) => {
-    setLoggedInUser(user);
+    publishAuthSnapshot({ ...authSnapshot, loggedInUser: user });
+  }, []);
+
+  const setLoggedInUser = useCallback((user) => {
+    publishAuthSnapshot({ ...authSnapshot, loggedInUser: user });
   }, []);
 
   return (

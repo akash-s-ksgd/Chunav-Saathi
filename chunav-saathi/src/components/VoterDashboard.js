@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { MapPin, Search, User, AlertCircle, Info } from "lucide-react";
 
@@ -32,28 +32,24 @@ const MOCK_DB = {
 export function VoterDashboard() {
   const { loggedInUser } = useAuth();
   const [epicInput, setEpicInput] = useState("");
-  const [activeProfile, setActiveProfile] = useState(null);
+  const [searchedProfile, setSearchedProfile] = useState(null);
+  const registeredProfile = loggedInUser?.method === "epic" && loggedInUser.epicNumber
+    ? MOCK_DB[loggedInUser.epicNumber.substring(0, 4).toUpperCase()]
+      ? { epic: loggedInUser.epicNumber, ...MOCK_DB[loggedInUser.epicNumber.substring(0, 4).toUpperCase()] }
+      : null
+    : null;
+  const activeProfile = registeredProfile || searchedProfile;
   
   // Search State
   const [searchState, setSearchState] = useState("");
   const [searchConst, setSearchConst] = useState("");
   const [searchResult, setSearchResult] = useState(null);
 
-  // Auto-populate if logged in via EPIC
-  useEffect(() => {
-    if (loggedInUser?.method === "epic" && loggedInUser.epicNumber) {
-      const prefix = loggedInUser.epicNumber.substring(0, 4).toUpperCase();
-      if (MOCK_DB[prefix]) {
-        setActiveProfile({ epic: loggedInUser.epicNumber, ...MOCK_DB[prefix] });
-      }
-    }
-  }, [loggedInUser]);
-
   const handleEpicSubmit = () => {
     if (!epicInput) return;
     const prefix = epicInput.substring(0, 4).toUpperCase();
     if (MOCK_DB[prefix]) {
-      setActiveProfile({ epic: epicInput.toUpperCase(), ...MOCK_DB[prefix] });
+      setSearchedProfile({ epic: epicInput.toUpperCase(), ...MOCK_DB[prefix] });
     } else {
       alert("EPIC prefix not found in Mock DB (Try KA01, DL02, MH03)");
     }

@@ -10,7 +10,7 @@ const translations = {
     tagline: "Your Trusted Election Companion",
     heroTitle: "Know Your Vote. Exercise Your Right.",
     heroSub:
-      "India's comprehensive election education platform powered by AI — built on ECI guidelines.",
+      "Election information and links to voter services, based on public ECI guidance. Independent student project, not affiliated with ECI.",
     timelineTitle: "Election Timeline",
     hubTitle: "ECI Action Hub",
     chatTitle: "Chunav Saathi AI",
@@ -48,7 +48,7 @@ const translations = {
     navLogout: "Logout",
     // ── Auth ─────────────────────────────────────────────────────
     loginTitle: "Citizen Login",
-    loginSubtitle: "Election Commission of India · Secure Portal",
+    loginSubtitle: "Independent student project · Not affiliated with ECI",
     registerTitle: "Citizen Registration",
     registerSubtitle: "Create your Chunav Saathi account",
     fullName: "Full Name",
@@ -164,7 +164,7 @@ const translations = {
     tagline: "आपका विश्वसनीय चुनाव साथी",
     heroTitle: "अपना वोट जानें। अपना अधिकार प्रयोग करें।",
     heroSub:
-      "AI-संचालित भारत का व्यापक चुनाव शिक्षा प्लेटफ़ॉर्म — ECI दिशानिर्देशों पर आधारित।",
+      "सार्वजनिक ECI मार्गदर्शन पर आधारित चुनाव जानकारी और मतदाता सेवा लिंक। स्वतंत्र छात्र परियोजना, ECI से संबद्ध नहीं।",
     timelineTitle: "चुनाव समयरेखा",
     hubTitle: "ECI एक्शन हब",
     chatTitle: "चुनाव साथी AI",
@@ -202,7 +202,7 @@ const translations = {
     navLogout: "लॉग आउट",
     // ── Auth ─────────────────────────────────────────────────────
     loginTitle: "नागरिक लॉगिन",
-    loginSubtitle: "भारत निर्वाचन आयोग · सुरक्षित पोर्टल",
+    loginSubtitle: "स्वतंत्र छात्र परियोजना · ECI से संबद्ध नहीं",
     registerTitle: "नागरिक पंजीकरण",
     registerSubtitle: "अपना चुनाव साथी खाता बनाएं",
     fullName: "पूरा नाम",
@@ -317,7 +317,7 @@ const translations = {
     navTitle: "ಚುನಾವ್ ಸಾಥಿ",
     tagline: "ನಿಮ್ಮ ವಿಶ್ವಾಸಾರ್ಹ ಚುನಾವಣಾ ಸಹಾಯಕ",
     heroTitle: "ನಿಮ್ಮ ಮತ ತಿಳಿಯಿರಿ. ನಿಮ್ಮ ಹಕ್ಕು ಚಲಾಯಿಸಿ.",
-    heroSub: "AI-ಚಾಲಿತ ಭಾರತದ ಸಮಗ್ರ ಚುನಾವಣಾ ಶಿಕ್ಷಣ ವೇದಿಕೆ — ECI ಮಾರ್ಗಸೂಚಿ ಆಧಾರಿತ.",
+    heroSub: "ಸಾರ್ವಜನಿಕ ECI ಮಾರ್ಗದರ್ಶನದ ಆಧಾರದ ಮೇಲೆ ಚುನಾವಣಾ ಮಾಹಿತಿ ಮತ್ತು ಮತದಾರ ಸೇವೆಗಳ ಕೊಂಡಿಗಳು. ಸ್ವತಂತ್ರ ವಿದ್ಯಾರ್ಥಿ ಯೋಜನೆ; ECI ಜೊತೆ ಸಂಬಂಧವಿಲ್ಲ.",
     timelineTitle: "ಚುನಾವಣಾ ಸಮಯರೇಖೆ",
     hubTitle: "ECI ಆಕ್ಷನ್ ಹಬ್",
     chatTitle: "ಚುನಾವ್ ಸಾಥಿ AI",
@@ -355,7 +355,7 @@ const translations = {
     navLogout: "ಲಾಗ್ ಔಟ್",
     // ── Auth ─────────────────────────────────────────────────────
     loginTitle: "ನಾಗರಿಕ ಲಾಗಿನ್",
-    loginSubtitle: "ಭಾರತ ಚುನಾವಣಾ ಆಯೋಗ · ಸುರಕ್ಷಿತ ಪೋರ್ಟಲ್",
+    loginSubtitle: "ಸ್ವತಂತ್ರ ವಿದ್ಯಾರ್ಥಿ ಯೋಜನೆ · ECI ಜೊತೆ ಸಂಬಂಧವಿಲ್ಲ",
     registerTitle: "ನಾಗರಿಕ ನೋಂದಣಿ",
     registerSubtitle: "ನಿಮ್ಮ ಚುನಾವ್ ಸಾಥಿ ಖಾತೆ ರಚಿಸಿ",
     fullName: "ಪೂರ್ಣ ಹೆಸರು",
