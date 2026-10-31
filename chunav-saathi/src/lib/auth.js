@@ -1,7 +1,10 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
-const JWT_SECRET = process.env.JWT_SECRET || "chunav-saathi-dev-secret-key-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET ||
+  (process.env.NODE_ENV === "test" ? "test-secret" : (() => {
+    throw new Error("JWT_SECRET is required in non-test environments.");
+  })());
 const TOKEN_EXPIRY = "7d";
 
 /**
@@ -69,8 +72,13 @@ export function withAuth(handler, options = {}) {
       );
     }
 
-    // Attach user to request for downstream use
     req.user = user;
     return handler(req, context);
   };
 }
+
+export const authService = {
+  getUserFromRequest,
+  verifyPassword,
+  generateToken,
+};

@@ -1,10 +1,11 @@
-import { getDb } from "@/lib/mongodb";
+import * as mongo from "@/lib/mongodb";
+import * as validation from "@/lib/validation";
 
 // GET /api/booths — Search polling booths with filters
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const db = await getDb();
+    const db = await mongo.getDb();
     const query = {};
 
     const state = searchParams.get("state");
@@ -13,21 +14,22 @@ export async function GET(req) {
     const pincode = searchParams.get("pincode");
     const search = searchParams.get("search");
     const accessible = searchParams.get("accessible");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const page = validation.clampPage(searchParams.get("page"), 1);
+    const limit = validation.clampLimit(searchParams.get("limit"), 20);
 
     if (state && state !== "all") query.state = state;
-    if (district && district !== "all") query.district = { $regex: district, $options: "i" };
-    if (constituency) query.constituency = { $regex: constituency, $options: "i" };
+    if (district && district !== "all") query.district = { $regex: validation.escapeRegex(district), $options: "i" };
+    if (constituency) query.constituency = { $regex: validation.escapeRegex(constituency), $options: "i" };
     if (pincode) query.pincode = pincode;
     if (accessible === "true") query.isAccessible = true;
 
     if (search) {
+      const safeSearch = validation.escapeRegex(search);
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { boothId: { $regex: search, $options: "i" } },
-        { address: { $regex: search, $options: "i" } },
-        { constituency: { $regex: search, $options: "i" } },
+        { name: { $regex: safeSearch, $options: "i" } },
+        { boothId: { $regex: safeSearch, $options: "i" } },
+        { address: { $regex: safeSearch, $options: "i" } },
+        { constituency: { $regex: safeSearch, $options: "i" } },
       ];
     }
 
@@ -42,7 +44,6 @@ export async function GET(req) {
       db.collection("booths").countDocuments(query),
     ]);
 
-    // Get distinct states and districts for filter dropdowns
     const states = await db.collection("booths").distinct("state");
 
     return Response.json({

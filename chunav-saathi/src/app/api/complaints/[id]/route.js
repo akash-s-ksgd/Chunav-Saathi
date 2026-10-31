@@ -1,15 +1,24 @@
-import { getDb } from "@/lib/mongodb";
-import { getUserFromRequest } from "@/lib/auth";
+import { database } from "../../../../lib/mongodb.js";
+import { authService } from "../../../../lib/auth.js";
+import {
+  ALLOWED_COMPLAINT_PRIORITIES,
+  ALLOWED_COMPLAINT_STATUSES,
+  isAllowedValue,
+} from "../../../../lib/validation.js";
 import { ObjectId } from "mongodb";
 
 // GET /api/complaints/[id] — Get a single complaint
 export async function GET(req, { params }) {
   try {
+    const user = authService.getUserFromRequest(req);
+    if (!user) {
+      return Response.json({ error: "Authentication required. Please login." }, { status: 401 });
+    }
+
     const { id } = await params;
-    const db = await getDb();
+    const db = await database.getDb();
 
     let complaint;
-    // Try by complaintId first, then by MongoDB _id
     complaint = await db.collection("complaints").findOne({ complaintId: id });
     if (!complaint && ObjectId.isValid(id)) {
       complaint = await db.collection("complaints").findOne({ _id: new ObjectId(id) });
@@ -17,6 +26,10 @@ export async function GET(req, { params }) {
 
     if (!complaint) {
       return Response.json({ error: "Complaint not found" }, { status: 404 });
+    }
+
+    if (user.role !== "admin" && complaint.userId !== user.userId) {
+      return Response.json({ error: "You are not allowed to view this complaint." }, { status: 403 });
     }
 
     return Response.json({ complaint });
@@ -29,14 +42,17 @@ export async function GET(req, { params }) {
 // PUT /api/complaints/[id] — Update a complaint
 export async function PUT(req, { params }) {
   try {
-    const user = getUserFromRequest(req);
+    const user = authService.getUserFromRequest(req);
     if (!user) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
     const { id } = await params;
     const body = await req.json();
-    const db = await getDb();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return Response.json({ error: "Invalid request body" }, { status: 400 });
+    }
+    const db = await database.getDb();
 
     let complaint = await db.collection("complaints").findOne({ complaintId: id });
     if (!complaint && ObjectId.isValid(id)) {
@@ -47,25 +63,58 @@ export async function PUT(req, { params }) {
       return Response.json({ error: "Complaint not found" }, { status: 404 });
     }
 
-    // Only admin or complaint owner can update
     if (user.role !== "admin" && complaint.userId !== user.userId) {
       return Response.json({ error: "Not authorized to update this complaint" }, { status: 403 });
     }
 
-    const updateFields = { updatedAt: new Date() };
-
-    // Admin can update status and adminNotes
-    if (user.role === "admin") {
-      if (body.status) updateFields.status = body.status;
-      if (body.adminNotes !== undefined) updateFields.adminNotes = body.adminNotes;
-      if (body.status === "Resolved") updateFields.resolvedAt = new Date();
+    const isAdmin = user.role === "admin";
+    const isOwner = complaint.userId === user.userId;
+    const allowedFields = isAdmin
+      ? ["status", "adminNotes", "priority"]
+      : ["subject", "description", "priority"];
+    const unexpectedFields = Object.keys(body).filter((field) => !allowedFields.includes(field));
+    if (unexpectedFields.length > 0) {
+      return Response.json({ error: "Request contains fields that cannot be updated" }, { status: 400 });
     }
 
-    // Owner can update description, priority
-    if (complaint.userId === user.userId && complaint.status === "Pending") {
-      if (body.subject) updateFields.subject = body.subject;
-      if (body.description) updateFields.description = body.description;
-      if (body.priority) updateFields.priority = body.priority;
+    if (!isAdmin && (!isOwner || complaint.status !== "Pending")) {
+      return Response.json({ error: "Only the owner can edit a pending complaint" }, { status: 403 });
+    }
+
+    const updateFields = { updatedAt: new Date() };
+    if (body.status !== undefined) {
+      if (!isAdmin || !isAllowedValue(body.status, ALLOWED_COMPLAINT_STATUSES)) {
+        return Response.json({ error: "Invalid complaint status" }, { status: 400 });
+      }
+      updateFields.status = body.status;
+      if (body.status === "Resolved") updateFields.resolvedAt = new Date();
+    }
+    if (body.priority !== undefined) {
+      if (!isAllowedValue(body.priority, ALLOWED_COMPLAINT_PRIORITIES)) {
+        return Response.json({ error: "Invalid complaint priority" }, { status: 400 });
+      }
+      updateFields.priority = body.priority;
+    }
+    if (body.adminNotes !== undefined) {
+      if (!isAdmin || typeof body.adminNotes !== "string" || body.adminNotes.length > 1000) {
+        return Response.json({ error: "Invalid admin notes" }, { status: 400 });
+      }
+      updateFields.adminNotes = body.adminNotes.trim();
+    }
+    if (body.subject !== undefined) {
+      if (typeof body.subject !== "string" || body.subject.trim().length < 10 || body.subject.length > 160) {
+        return Response.json({ error: "Subject must be between 10 and 160 characters" }, { status: 400 });
+      }
+      updateFields.subject = body.subject.trim();
+    }
+    if (body.description !== undefined) {
+      if (typeof body.description !== "string" || body.description.trim().length < 30 || body.description.length > 5000) {
+        return Response.json({ error: "Description must be between 30 and 5000 characters" }, { status: 400 });
+      }
+      updateFields.description = body.description.trim();
+    }
+    if (Object.keys(updateFields).length === 1) {
+      return Response.json({ error: "No complaint fields were provided" }, { status: 400 });
     }
 
     await db.collection("complaints").updateOne(
@@ -88,13 +137,13 @@ export async function PUT(req, { params }) {
 // DELETE /api/complaints/[id] — Delete a complaint
 export async function DELETE(req, { params }) {
   try {
-    const user = getUserFromRequest(req);
+    const user = authService.getUserFromRequest(req);
     if (!user) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
     const { id } = await params;
-    const db = await getDb();
+    const db = await database.getDb();
 
     let complaint = await db.collection("complaints").findOne({ complaintId: id });
     if (!complaint && ObjectId.isValid(id)) {
@@ -105,7 +154,6 @@ export async function DELETE(req, { params }) {
       return Response.json({ error: "Complaint not found" }, { status: 404 });
     }
 
-    // Only admin or complaint owner can delete
     if (user.role !== "admin" && complaint.userId !== user.userId) {
       return Response.json({ error: "Not authorized to delete this complaint" }, { status: 403 });
     }

@@ -1,22 +1,32 @@
-import { getDb } from "@/lib/mongodb";
-import { getUserFromRequest } from "@/lib/auth";
-import { ObjectId } from "mongodb";
+import { database } from "../../../lib/mongodb.js";
+import { authService } from "../../../lib/auth.js";
+import {
+  ALLOWED_COMPLAINT_CATEGORIES,
+  ALLOWED_COMPLAINT_PRIORITIES,
+  ALLOWED_COMPLAINT_STATUSES,
+  clampLimit,
+  clampPage,
+  escapeRegex,
+  sanitizeSearch,
+  isAllowedValue,
+} from "../../../lib/validation.js";
 
 // GET /api/complaints — List complaints with filters
 export async function GET(req) {
   try {
-    const user = getUserFromRequest(req);
-    const { searchParams } = new URL(req.url);
-
-    const db = await getDb();
-    const query = {};
-
-    // Non-admin users can only see their own complaints
-    if (!user || user.role !== "admin") {
-      if (user) query.userId = user.userId;
+    const user = authService.getUserFromRequest(req);
+    if (!user) {
+      return Response.json({ error: "Authentication required. Please login." }, { status: 401 });
     }
 
-    // Filters
+    const { searchParams } = new URL(req.url);
+    const db = await database.getDb();
+    const query = {};
+
+    if (user.role !== "admin") {
+      query.userId = user.userId;
+    }
+
     const status = searchParams.get("status");
     const category = searchParams.get("category");
     const state = searchParams.get("state");
@@ -24,26 +34,42 @@ export async function GET(req) {
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
     const search = searchParams.get("search");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const page = clampPage(searchParams.get("page"), 1);
+    const limit = clampLimit(searchParams.get("limit"), 20);
 
-    if (status && status !== "all") query.status = status;
-    if (category && category !== "all") query.category = category;
+    if (status && status !== "all") {
+      if (!isAllowedValue(status, ALLOWED_COMPLAINT_STATUSES)) {
+        return Response.json({ error: "Invalid complaint status" }, { status: 400 });
+      }
+      query.status = status;
+    }
+    if (category && category !== "all") {
+      if (!isAllowedValue(category, ALLOWED_COMPLAINT_CATEGORIES)) {
+        return Response.json({ error: "Invalid complaint category" }, { status: 400 });
+      }
+      query.category = category;
+    }
     if (state && state !== "all") query.state = state;
-    if (priority && priority !== "all") query.priority = priority;
+    if (priority && priority !== "all") {
+      if (!isAllowedValue(priority, ALLOWED_COMPLAINT_PRIORITIES)) {
+        return Response.json({ error: "Invalid complaint priority" }, { status: 400 });
+      }
+      query.priority = priority;
+    }
 
     if (dateFrom || dateTo) {
       query.createdAt = {};
       if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
-      if (dateTo) query.createdAt.$lte = new Date(dateTo + "T23:59:59Z");
+      if (dateTo) query.createdAt.$lte = new Date(`${dateTo}T23:59:59Z`);
     }
 
     if (search) {
+      const safeSearch = sanitizeSearch(search);
       query.$or = [
-        { subject: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { complaintId: { $regex: search, $options: "i" } },
-        { userName: { $regex: search, $options: "i" } },
+        { subject: { $regex: safeSearch, $options: "i" } },
+        { description: { $regex: safeSearch, $options: "i" } },
+        { complaintId: { $regex: safeSearch, $options: "i" } },
+        { state: { $regex: safeSearch, $options: "i" } },
       ];
     }
 
@@ -76,32 +102,48 @@ export async function GET(req) {
 // POST /api/complaints — Create a new complaint
 export async function POST(req) {
   try {
-    const user = getUserFromRequest(req);
+    const user = authService.getUserFromRequest(req);
     if (!user) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return Response.json({ error: "Invalid request body" }, { status: 400 });
+    }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return Response.json({ error: "Invalid request body" }, { status: 400 });
+    }
     const { category, subject, description, state, district, constituency, boothId, priority } = body;
 
-    // ── Validation ──────────────────────────────────────────────
     const errors = {};
-    if (!category) errors.category = "Category is required";
-    if (!subject || subject.trim().length < 10) errors.subject = "Subject must be at least 10 characters";
-    if (!description || description.trim().length < 30) errors.description = "Description must be at least 30 characters";
-    if (!state) errors.state = "State is required";
-    if (!district) errors.district = "District is required";
-    if (!priority) errors.priority = "Priority is required";
+    if (!category || !isAllowedValue(category, ALLOWED_COMPLAINT_CATEGORIES)) errors.category = "Category is required";
+    if (typeof subject !== "string" || subject.trim().length < 10 || subject.length > 160) errors.subject = "Subject must be between 10 and 160 characters";
+    if (typeof description !== "string" || description.trim().length < 30 || description.length > 5000) errors.description = "Description must be between 30 and 5000 characters";
+    if (typeof state !== "string" || !state.trim() || state.length > 100) errors.state = "State is required";
+    if (typeof district !== "string" || !district.trim() || district.length > 100) errors.district = "District is required";
+    if (constituency !== undefined && typeof constituency !== "string") errors.constituency = "Constituency must be text";
+    if (boothId !== undefined && typeof boothId !== "string") errors.boothId = "Booth ID must be text";
+    if (!priority || !isAllowedValue(priority, ALLOWED_COMPLAINT_PRIORITIES)) errors.priority = "Priority is required";
 
     if (Object.keys(errors).length > 0) {
       return Response.json({ error: "Validation failed", errors }, { status: 400 });
     }
 
-    const db = await getDb();
+    const db = await database.getDb();
+    await db.collection("complaints").createIndex({ complaintId: 1 }, { unique: true, sparse: true });
 
-    // Generate complaint ID
-    const count = await db.collection("complaints").countDocuments();
-    const complaintId = `CMP-${String(count + 1).padStart(5, "0")}`;
+    const counter = await db.collection("counters").findOneAndUpdate(
+      { _id: "complaintId" },
+      { $inc: { value: 1 } },
+      { upsert: true, returnDocument: "after" }
+    );
+    if (!Number.isInteger(counter?.value)) {
+      throw new Error("Complaint counter did not return a valid sequence value.");
+    }
+    const complaintId = `CMP-${String(counter.value).padStart(5, "0")}`;
 
     const complaint = {
       complaintId,
@@ -111,10 +153,10 @@ export async function POST(req) {
       category,
       subject: subject.trim(),
       description: description.trim(),
-      state,
-      district,
-      constituency: constituency || "",
-      boothId: boothId || "",
+      state: state.trim(),
+      district: district.trim(),
+      constituency: constituency?.trim() || "",
+      boothId: boothId?.trim() || "",
       boothName: "",
       priority,
       status: "Pending",
@@ -124,7 +166,6 @@ export async function POST(req) {
       updatedAt: new Date(),
     };
 
-    // If boothId provided, fetch booth name
     if (boothId) {
       const booth = await db.collection("booths").findOne({ boothId });
       if (booth) complaint.boothName = booth.name;

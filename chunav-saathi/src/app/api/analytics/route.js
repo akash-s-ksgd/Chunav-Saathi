@@ -1,13 +1,13 @@
-import { getDb } from "@/lib/mongodb";
-import { getUserFromRequest } from "@/lib/auth";
+import { database } from "../../../lib/mongodb.js";
+import { authService } from "../../../lib/auth.js";
 
 // GET /api/analytics — Aggregated analytics data with filters
 export async function GET(req) {
   try {
+    const user = authService.getUserFromRequest(req);
     const { searchParams } = new URL(req.url);
-    const db = await getDb();
+    const db = await database.getDb();
 
-    // ── Build match query from filters ──────────────────────────
     const match = {};
     const state = searchParams.get("state");
     const category = searchParams.get("category");
@@ -21,15 +21,15 @@ export async function GET(req) {
     if (category && category !== "all") match.category = category;
     if (status && status !== "all") match.status = status;
     if (priority && priority !== "all") match.priority = priority;
-    if (userId) match.userId = userId;
+    if (userId && user?.role === "admin") match.userId = userId;
 
     if (dateFrom || dateTo) {
       match.createdAt = {};
       if (dateFrom) match.createdAt.$gte = new Date(dateFrom);
-      if (dateTo) match.createdAt.$lte = new Date(dateTo + "T23:59:59Z");
+      if (dateTo) match.createdAt.$lte = new Date(`${dateTo}T23:59:59Z`);
     }
 
-    // ── Run all aggregations in parallel ────────────────────────
+    const isAdmin = user?.role === "admin";
     const [
       totalComplaints,
       statusBreakdown,
@@ -43,39 +43,28 @@ export async function GET(req) {
       boothStats,
       electionStats,
     ] = await Promise.all([
-      // 1. Total count
       db.collection("complaints").countDocuments(match),
-
-      // 2. Status breakdown
       db.collection("complaints").aggregate([
         { $match: match },
         { $group: { _id: "$status", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
       ]).toArray(),
-
-      // 3. Category breakdown
       db.collection("complaints").aggregate([
         { $match: match },
         { $group: { _id: "$category", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
       ]).toArray(),
-
-      // 4. State breakdown
       db.collection("complaints").aggregate([
         { $match: match },
         { $group: { _id: "$state", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 10 },
       ]).toArray(),
-
-      // 5. Priority breakdown
       db.collection("complaints").aggregate([
         { $match: match },
         { $group: { _id: "$priority", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
       ]).toArray(),
-
-      // 6. Monthly trend
       db.collection("complaints").aggregate([
         { $match: match },
         {
@@ -89,23 +78,24 @@ export async function GET(req) {
         },
         { $sort: { "_id.year": 1, "_id.month": 1 } },
       ]).toArray(),
-
-      // 7. Recent complaints
-      db.collection("complaints")
-        .find(match)
-        .sort({ createdAt: -1 })
-        .limit(10)
-        .toArray(),
-
-      // 8. Top users by complaint count
-      db.collection("complaints").aggregate([
-        { $match: match },
-        { $group: { _id: "$userName", userId: { $first: "$userId" }, count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-        { $limit: 10 },
-      ]).toArray(),
-
-      // 9. Average resolution time (for resolved complaints)
+      isAdmin
+        ? db.collection("complaints").find(match).sort({ createdAt: -1 }).limit(10).project({
+            userId: 0,
+            userName: 0,
+            userPhone: 0,
+            subject: 0,
+            description: 0,
+            adminNotes: 0,
+          }).toArray()
+        : [],
+      isAdmin
+        ? db.collection("complaints").aggregate([
+            { $match: match },
+            { $group: { _id: "$userId", count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 10 },
+          ]).toArray()
+        : [],
       db.collection("complaints").aggregate([
         { $match: { ...match, status: "Resolved", resolvedAt: { $ne: null } } },
         {
@@ -120,8 +110,6 @@ export async function GET(req) {
         },
         { $group: { _id: null, avgDays: { $avg: "$resolutionDays" } } },
       ]).toArray(),
-
-      // 10. Booth statistics
       db.collection("booths").aggregate([
         {
           $group: {
@@ -132,15 +120,12 @@ export async function GET(req) {
           },
         },
       ]).toArray(),
-
-      // 11. Election data summary
       db.collection("elections").find({}).toArray(),
     ]);
 
-    // ── Format response ─────────────────────────────────────────
-    const resolved = statusBreakdown.find(s => s._id === "Resolved")?.count || 0;
-    const pending = statusBreakdown.find(s => s._id === "Pending")?.count || 0;
-    const inProgress = statusBreakdown.find(s => s._id === "In Progress")?.count || 0;
+    const resolved = statusBreakdown.find((s) => s._id === "Resolved")?.count || 0;
+    const pending = statusBreakdown.find((s) => s._id === "Pending")?.count || 0;
+    const inProgress = statusBreakdown.find((s) => s._id === "In Progress")?.count || 0;
 
     return Response.json({
       kpis: {
@@ -154,17 +139,19 @@ export async function GET(req) {
         accessibleBooths: boothStats[0]?.accessibleBooths || 0,
       },
       charts: {
-        statusBreakdown: statusBreakdown.map(s => ({ label: s._id, value: s.count })),
-        categoryBreakdown: categoryBreakdown.map(c => ({ label: c._id, value: c.count })),
-        stateBreakdown: stateBreakdown.map(s => ({ label: s._id, value: s.count })),
-        priorityBreakdown: priorityBreakdown.map(p => ({ label: p._id, value: p.count })),
-        monthlyTrend: monthlyTrend.map(m => ({
+        statusBreakdown: statusBreakdown.map((s) => ({ label: s._id, value: s.count })),
+        categoryBreakdown: categoryBreakdown.map((c) => ({ label: c._id, value: c.count })),
+        stateBreakdown: stateBreakdown.map((s) => ({ label: s._id, value: s.count })),
+        priorityBreakdown: priorityBreakdown.map((p) => ({ label: p._id, value: p.count })),
+        monthlyTrend: monthlyTrend.map((m) => ({
           label: `${m._id.year}-${String(m._id.month).padStart(2, "0")}`,
           value: m.count,
         })),
       },
-      topUsers: topUsers.map(u => ({ name: u._id, userId: u.userId, count: u.count })),
-      recentComplaints,
+      topUsers: isAdmin
+        ? topUsers.map((item, index) => ({ label: `Reporter ${index + 1}`, count: item.count }))
+        : undefined,
+      recentComplaints: isAdmin ? recentComplaints : undefined,
       elections: electionStats,
       filters: {
         states: await db.collection("complaints").distinct("state"),

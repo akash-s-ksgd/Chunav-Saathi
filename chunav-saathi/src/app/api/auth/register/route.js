@@ -1,12 +1,19 @@
 import { getDb } from "@/lib/mongodb";
 import { hashPassword, generateToken } from "@/lib/auth";
+import { rateLimit, getClientIp } from "@/lib/rateLimit";
+import { validatePassword } from "@/lib/validation";
 
 export async function POST(req) {
   try {
+    const ip = getClientIp(req);
+    const limitResult = rateLimit({ key: `register:${ip}:${(await req.clone().json()).phone || "unknown"}`, limit: 5, windowMs: 15 * 60 * 1000 });
+    if (!limitResult.allowed) {
+      return Response.json({ error: "Too many registration attempts. Please try again later." }, { status: 429 });
+    }
+
     const body = await req.json();
     const { name, phone, password, confirmPassword, state, district, constituency, epicNumber } = body;
 
-    // ── Validation ──────────────────────────────────────────────
     const errors = {};
 
     if (!name || name.trim().length < 2) {
@@ -15,8 +22,8 @@ export async function POST(req) {
     if (!phone || !/^\d{10}$/.test(phone)) {
       errors.phone = "Valid 10-digit phone number required";
     }
-    if (!password || password.length < 6) {
-      errors.password = "Password must be at least 6 characters";
+    if (!validatePassword(password)) {
+      errors.password = "Password must be at least 8 characters and include a letter and a number";
     }
     if (password !== confirmPassword) {
       errors.confirmPassword = "Passwords do not match";
@@ -33,8 +40,6 @@ export async function POST(req) {
     }
 
     const db = await getDb();
-
-    // ── Check if phone already exists ───────────────────────────
     const existing = await db.collection("users").findOne({ phone });
     if (existing) {
       return Response.json(
@@ -43,7 +48,6 @@ export async function POST(req) {
       );
     }
 
-    // ── Create user ─────────────────────────────────────────────
     const hashedPassword = await hashPassword(password);
     const user = {
       name: name.trim(),
@@ -54,14 +58,12 @@ export async function POST(req) {
       district,
       constituency: constituency || "",
       epicNumber: epicNumber ? epicNumber.toUpperCase() : "",
-      isVerified: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
     const result = await db.collection("users").insertOne(user);
 
-    // ── Generate JWT ────────────────────────────────────────────
     const token = generateToken({
       userId: result.insertedId.toString(),
       role: "citizen",

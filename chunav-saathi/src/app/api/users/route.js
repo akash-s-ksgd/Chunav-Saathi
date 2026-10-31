@@ -1,18 +1,18 @@
-import { getDb } from "@/lib/mongodb";
-import { getUserFromRequest } from "@/lib/auth";
+import * as mongo from "@/lib/mongodb";
+import * as auth from "@/lib/auth";
+import * as validation from "@/lib/validation";
 
 // GET /api/users — List users (admin) or get current user profile
 export async function GET(req) {
   try {
-    const user = getUserFromRequest(req);
+    const user = auth.getUserFromRequest(req);
     if (!user) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const db = await getDb();
+    const db = await mongo.getDb();
     const { searchParams } = new URL(req.url);
 
-    // If requesting own profile
     if (searchParams.get("me") === "true") {
       const profile = await db.collection("users").findOne(
         { phone: user.phone },
@@ -24,22 +24,22 @@ export async function GET(req) {
       return Response.json({ user: profile });
     }
 
-    // Admin-only: list all users
     if (user.role !== "admin") {
       return Response.json({ error: "Admin access required" }, { status: 403 });
     }
 
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const page = validation.clampPage(searchParams.get("page"), 1);
+    const limit = validation.clampLimit(searchParams.get("limit"), 20);
     const skip = (page - 1) * limit;
 
     const query = {};
     const search = searchParams.get("search");
     if (search) {
+      const safeSearch = validation.escapeRegex(search);
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { phone: { $regex: search, $options: "i" } },
-        { epicNumber: { $regex: search, $options: "i" } },
+        { name: { $regex: safeSearch, $options: "i" } },
+        { phone: { $regex: safeSearch, $options: "i" } },
+        { epicNumber: { $regex: safeSearch, $options: "i" } },
       ];
     }
 

@@ -3,8 +3,25 @@
  * Run with: node --experimental-modules src/lib/seed.js
  * Or via the API: POST /api/seed
  */
-import { getDb } from "./mongodb.js";
+import { closeDb, getDb } from "./mongodb.js";
 import { hashPassword } from "./auth.js";
+import { pathToFileURL } from "node:url";
+import { resolve } from "node:path";
+
+function assertSeedAllowed() {
+  if (process.env.ALLOW_SEED !== "true") {
+    throw new Error("Seeding is disabled. Set ALLOW_SEED=true to run the local demo seed.");
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Seeding is not allowed in production.");
+  }
+  if (!process.env.SEED_ADMIN_PASSWORD || !process.env.SEED_CITIZEN_PASSWORD) {
+    throw new Error("SEED_ADMIN_PASSWORD and SEED_CITIZEN_PASSWORD are required.");
+  }
+  if (!/^\d{10}$/.test(process.env.SEED_ADMIN_PHONE || "")) {
+    throw new Error("SEED_ADMIN_PHONE must be a 10-digit phone number.");
+  }
+}
 
 // ── Indian States & Districts ────────────────────────────────────────────
 const STATES_DATA = {
@@ -177,8 +194,8 @@ function generateComplaints(users, booths) {
 
 // ── Generate Users ───────────────────────────────────────────────────────
 async function generateUsers() {
-  const defaultPassword = await hashPassword("citizen123");
-  const adminPassword = await hashPassword("admin123");
+  const defaultPassword = await hashPassword(process.env.SEED_CITIZEN_PASSWORD);
+  const adminPassword = await hashPassword(process.env.SEED_ADMIN_PASSWORD);
 
   const names = [
     "Aarav Sharma", "Priya Patel", "Vikram Singh", "Ananya Reddy",
@@ -193,8 +210,8 @@ async function generateUsers() {
   // Admin user
   users.push({
     odId: "admin-001",
-    name: "Admin ECI",
-    phone: "9999900000",
+    name: "Demo Administrator",
+    phone: process.env.SEED_ADMIN_PHONE,
     email: "admin@chunavsaathi.in",
     password: adminPassword,
     role: "admin",
@@ -283,6 +300,7 @@ function generateElectionData() {
 
 // ── Main Seed Function ───────────────────────────────────────────────────
 export async function seedDatabase() {
+  assertSeedAllowed();
   const db = await getDb();
 
   console.log("🌱 Seeding Chunav-Saathi database...\n");
@@ -334,13 +352,25 @@ export async function seedDatabase() {
   console.log("   ✓ Indexes created\n");
 
   console.log("✅ Database seeded successfully!");
-  console.log(`   Admin login: phone=9999900000, password=admin123`);
-  console.log(`   Citizen login: phone=(see any user), password=citizen123`);
-
   return {
     users: users.length,
     booths: booths.length,
     complaints: complaints.length,
     elections: elections.length,
   };
+}
+
+const isDirectExecution = process.argv[1]
+  && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
+
+if (isDirectExecution) {
+  try {
+    const counts = await seedDatabase();
+    console.log(JSON.stringify({ message: "Demo database seeded", counts }, null, 2));
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  } finally {
+    await closeDb();
+  }
 }

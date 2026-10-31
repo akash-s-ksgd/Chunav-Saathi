@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { validatePassword } from "@/lib/validation";
 import {
   X, Phone, UserPlus, Eye, EyeOff,
   CheckCircle2, Loader2, ShieldCheck, AlertCircle, ChevronDown,
@@ -78,8 +79,8 @@ export function LoginModal({ onClose, onLoginSuccess }) {
     if (!loginPhone || !/^\d{10}$/.test(loginPhone)) {
       errors.phone = "Valid 10-digit phone number required";
     }
-    if (!loginPassword || loginPassword.length < 6) {
-      errors.password = "Password must be at least 6 characters";
+    if (!validatePassword(loginPassword)) {
+      errors.password = "Password must be at least 8 characters and include a letter and a number";
     }
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -90,7 +91,7 @@ export function LoginModal({ onClose, onLoginSuccess }) {
     const errors = {};
     if (!regName || regName.trim().length < 2) errors.name = "Name must be at least 2 characters";
     if (!regPhone || !/^\d{10}$/.test(regPhone)) errors.phone = "Valid 10-digit phone number required";
-    if (!regPassword || regPassword.length < 6) errors.password = "Password must be at least 6 characters";
+    if (!validatePassword(regPassword)) errors.password = "Password must be at least 8 characters and include a letter and a number";
     if (regPassword !== regConfirmPassword) errors.confirmPassword = "Passwords do not match";
     if (!regState) errors.state = "State is required";
     if (!regDistrict) errors.district = "District is required";
@@ -489,7 +490,7 @@ export function LoginModal({ onClose, onLoginSuccess }) {
         {/* Footer */}
         {!isSuccess && (
           <div style={{ padding: "10px 22px", borderTop: "1px solid var(--border)", fontSize: "0.7rem", color: "var(--text-muted)", textAlign: "center", flexShrink: 0 }}>
-            🔒 Secured by JWT Authentication · ECI Citizen Portal
+            Secured by JWT authentication · Independent student project
           </div>
         )}
       </div>
