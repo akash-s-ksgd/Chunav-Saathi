@@ -2,7 +2,7 @@
 
 ## Status
 
-Phases 1 and 2 are implemented and passed the checks listed below. Phase 3 is blocked pending confirmation about the content of pages 1–2 in the unique Belthangady PDFs. Phase 4 has only partial changes; Phase 5 is not complete. No database seed or import commit was run. No secrets were added to this file or `.env.example`.
+Phases 1 and 2 are implemented and passed the checks listed below. Phase 3 is blocked pending confirmation about the content of pages 1–2 in the unique Belthangady PDFs. Phase 4 includes the identity/state fixes and the Phase 4b screenshot fixes below, but the wider theme/font/accessibility work is still incomplete. Phase 5 is not complete. No database seed or import commit was run. No secrets were added to this file or `.env.example`.
 
 ## Phase 1: Security
 
@@ -40,7 +40,20 @@ Not implemented: summary-page extraction, verified-part import, null-safe booth 
 
 - Replaced false ECI affiliation claims in the hero, metadata, navigation, login/chat copy, and assistant instructions with independent-student-project wording. Links to official ECI services remain.
 - Fixed existing React lint errors in auth/theme contexts, complaints pages, navbar, and voter dashboard using derived state or external-store subscriptions.
-- Did not implement System/Light/Dark selection, `next/font`, Kannada font loading, full WCAG contrast/focus/modal/reduced-motion work, source-backed hero statistics, loading/error/retry states for all fetches, or 360px/768px browser checks. These remain pending; phase work was stopped at the Phase 3 data confirmation gate.
+- Did not implement System/Light/Dark selection, `next/font`, Kannada font loading, full WCAG contrast/focus/modal work, source-backed hero statistics, or loading/error/retry states for every fetch. These remain pending.
+
+## Phase 4b: Screenshot Fixes
+
+- Rebuilt the home hero as a desktop two-column layout with a compact chat; it stacks below 700px. The grey login notice is now an analytics link.
+- Kept a four-cell stat strip with stable one-line labels, but all figures remain unavailable placeholders with an explicit source/year-unavailable note. A sourced figure cannot be shown until Phase 3 data is approved and imported.
+- The independent-project notice and 1950 helpline appear in the top banner and footer; they were removed from the hero text.
+- Moved the two data-backed chat suggestions below the greeting, reduced the initial greeting, and added a constituency-specific Belthangady booth query with an explicit no-records answer. The chat panel has a compact empty state and can expand to a bounded height.
+- Converted the timeline to an undated process without Completed/In Progress/Upcoming claims.
+- Reused one EPIC regex for client validation, input pattern, and server registration validation: three letters followed by seven digits. Added a Node regression test.
+- Replaced mock EPIC/constituency results with an official ECI search link and state-dependent constituency/booth lookup from the booths API. Empty, loading, and error states are shown.
+- Made analytics filters visible, authenticated the analytics page, removed the booth KPI that could not respond to complaint filters, and added signed-out/loading/error/empty states. Recent detail remains admin-only. Live-data claims were replaced with a client refresh timestamp.
+- Replaced the blue gradient summary panel with the normal flat panel, switched action buttons to saffron, raised touched muted text contrast, added focus-visible outlines/reduced-motion handling, and increased touched labels/body copy to the requested minimum sizes.
+- Browser checks at 360px, 768px, and 1280px reported no horizontal page overflow. At 360px the banner and fixed navigation do not overlap; at 768px the hero stays two-column and the chat greeting/suggestions/input fit; at 1280px the hero chat is visible in the first viewport.
 
 ## Phase 5: Cleanup and Docs
 
@@ -88,11 +101,11 @@ node --test tests/*.test.mjs
 
 - `npm run lint`: passed with 0 errors and 1 existing Google Fonts warning in `src/app/layout.js`.
 - `npm run build`: passed using a throwaway process-only JWT secret; the build correctly fails when the required secret is absent.
-- `node --test tests/*.test.mjs`: 8 passed, 0 failed.
+- `node --test tests/*.test.mjs`: 9 passed, 0 failed.
 - `npm run seed` with `ALLOW_SEED=false`: correctly refused before database access.
 - Existing import dry run: blocked as detailed above; no database was written.
-- Live login/registration, CRUD against MongoDB, Groq streaming, real data.gov.in access, seeded UI, and responsive browser behavior were not exercised in this pass.
+- Live login/registration, CRUD against MongoDB, Groq streaming, real data.gov.in access, and seeded UI were not exercised in this pass.
 - The in-memory rate limiter is per process and is not suitable for multi-instance production deployment. Forwarded-IP headers must be trusted/normalized by the deployment proxy.
 - Seed generation contains synthetic election/booth/complaint data; it is demo data, not official election statistics. The seed operation is destructive to the four listed collections.
 - The data.gov.in service still has hardcoded resource IDs; their validity/provenance was not verified.
-- Commits created: Phase 1 `77570d9`, Phase 2 `c1094a5`, and partial Phase 4 `90be256`. The review document itself is awaiting its documentation commit.
+- Phase commits are recorded separately in Git history. Earlier commits include Phase 1 `77570d9`, Phase 2 `c1094a5`, and partial Phase 4 `90be256`.

@@ -12,6 +12,7 @@ export const ALLOWED_COMPLAINT_CATEGORIES = [
   "Transportation",
   "Other",
 ];
+export const EPIC_NUMBER_PATTERN = /^[A-Z]{3}\d{7}$/;
 
 export function escapeRegex(value = "") {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -35,6 +36,10 @@ export function validatePassword(password) {
   if (!/[A-Za-z]/.test(password)) return false;
   if (!/\d/.test(password)) return false;
   return true;
+}
+
+export function validateEpicNumber(value) {
+  return typeof value === "string" && EPIC_NUMBER_PATTERN.test(value.trim().toUpperCase());
 }
 
 export function normalizeText(value, defaultValue = "") {

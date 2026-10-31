@@ -2,6 +2,7 @@ import { groq } from "@ai-sdk/groq";
 import { convertToModelMessages, streamText } from "ai";
 import { getDb } from "@/lib/mongodb";
 import { getClientIp, rateLimit } from "@/lib/rateLimit";
+import { escapeRegex } from "@/lib/validation";
 
 // Using Node.js runtime for MongoDB compatibility
 export const maxDuration = 30;
@@ -38,6 +39,7 @@ function detectDataIntent(messages) {
     complaintStats: false,
     electionData: false,
     stateFilter: null,
+    constituencyFilter: null,
   };
 
   // Booth-related keywords
@@ -72,6 +74,10 @@ function detectDataIntent(messages) {
       break;
     }
   }
+  if (lastMsg.includes("belthangady")) {
+    intents.constituencyFilter = "Belthangady";
+    intents.stateFilter = "Karnataka";
+  }
 
   return intents;
 }
@@ -89,8 +95,14 @@ async function getDataContext(intents) {
     const stateMatch = intents.stateFilter ? { state: intents.stateFilter } : {};
 
     if (intents.boothSearch) {
+      const boothMatch = intents.constituencyFilter
+        ? {
+            ...stateMatch,
+            constituency: { $regex: escapeRegex(intents.constituencyFilter), $options: "i" },
+          }
+        : stateMatch;
       const booths = await db.collection("booths")
-        .find(stateMatch)
+        .find(boothMatch)
         .limit(10)
         .toArray();
 
@@ -99,7 +111,10 @@ async function getDataContext(intents) {
         booths.forEach(b => {
           context += `• ${b.name} | ${b.constituency}, ${b.district}, ${b.state} | Booth #${b.boothNumber} | Capacity: ${b.capacity} | Accessible: ${b.isAccessible ? "Yes" : "No"} | Polling Date: ${new Date(b.pollingDate).toLocaleDateString()}\n`;
         });
-        context += `Total booths matching: ${await db.collection("booths").countDocuments(stateMatch)}\n`;
+        context += `Total booths matching: ${await db.collection("booths").countDocuments(boothMatch)}\n`;
+      } else {
+        const location = intents.constituencyFilter || intents.stateFilter || "the requested area";
+        context += `\n\n[POLLING BOOTH DATA FROM DATABASE]\nNo booth records matching ${location} are currently available in the database. Do not estimate a count.\n`;
       }
     }
 

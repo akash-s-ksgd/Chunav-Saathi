@@ -45,10 +45,14 @@ export async function GET(req) {
     ]);
 
     const states = await db.collection("booths").distinct("state");
+    const constituencies = state && state !== "all"
+      ? await db.collection("booths").distinct("constituency", { state })
+      : [];
 
     return Response.json({
       booths,
       states,
+      constituencies: constituencies.filter((value) => typeof value === "string" && value.trim()),
       pagination: {
         page,
         limit,

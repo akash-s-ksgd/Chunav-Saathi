@@ -1,20 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 import {
   Activity,
-  ArrowRight,
-  Check,
   CheckCircle2,
   Clock3,
   Download,
   FileText,
-  Filter,
-  MapPin,
   RefreshCw,
   ShieldCheck,
   Users,
-  X,
 } from "lucide-react";
 
 const DEFAULT_FILTERS = {
@@ -32,11 +28,11 @@ const STATUS_COLORS = {
   Rejected: "#e56b8a",
 };
 
-const CATEGORY_COLORS = ["#3975e8", "#19a775", "#e88754", "#9a7be7", "#e56b8a"];
+const CATEGORY_COLORS = ["#c2410c", "#197a5b", "#3975e8", "#a34f83", "#9a6a1e"];
 
 function Panel({ children, className = "" }) {
   return (
-    <section className={`rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm ${className}`}>
+    <section className={`rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm ${className}`}>
       {children}
     </section>
   );
@@ -47,7 +43,7 @@ function PanelTitle({ eyebrow, title, action }) {
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         {eyebrow && (
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)]">
+          <p className="mb-1 text-xs font-semibold uppercase text-[var(--text-muted)]">
             {eyebrow}
           </p>
         )}
@@ -110,7 +106,7 @@ function TrendChart({ data }) {
           <p className="mt-2 text-xs text-[var(--text-muted)]">complaints in the selected period</p>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--muted-bg)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)]">
-          <Activity size={13} className="text-[#3975e8]" />
+          <Activity size={13} className="text-[var(--primary-text)]" />
           Monthly overview
         </span>
       </div>
@@ -149,7 +145,7 @@ function TrendChart({ data }) {
               x={point.x}
               y="243"
               fill="var(--text-muted)"
-              fontSize="10"
+              fontSize="12"
               textAnchor="middle"
             >
               {point.label}
@@ -194,7 +190,7 @@ function StatusBreakdown({ data }) {
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">{total}</span>
-          <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">total</span>
+          <span className="text-xs font-medium uppercase text-[var(--text-muted)]">total</span>
         </div>
       </div>
       <div className="grid w-full gap-3">
@@ -244,7 +240,7 @@ function FilterSelect({ label, value, options, onChange }) {
     <label className="grid gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
       {label}
       <select
-        className="min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[#3975e8]"
+        className="min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--primary)]"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       >
@@ -259,11 +255,12 @@ function escapeCsv(value) {
 }
 
 export default function AnalyticsPage() {
+  const { loggedInUser, loading: authLoading, authFetch } = useAuth();
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const fetchAnalytics = useCallback(async (selectedFilters) => {
     setLoading(true);
@@ -273,21 +270,23 @@ export default function AnalyticsPage() {
       Object.entries(selectedFilters).forEach(([key, value]) => {
         if (value && value !== "all") params.set(key, value);
       });
-      const response = await fetch(`/api/analytics?${params}`);
+      const response = await authFetch(`/api/analytics?${params}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Unable to load analytics.");
       setAnalytics(data);
+      setLastUpdated(new Date());
     } catch (fetchError) {
       setError(fetchError.message || "Unable to load analytics.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authFetch]);
 
   useEffect(() => {
+    if (authLoading || !loggedInUser) return undefined;
     const timer = window.setTimeout(() => fetchAnalytics(DEFAULT_FILTERS), 0);
     return () => window.clearTimeout(timer);
-  }, [fetchAnalytics]);
+  }, [authLoading, fetchAnalytics, loggedInUser]);
 
   const exportCsv = () => {
     const complaints = analytics?.recentComplaints || [];
@@ -312,18 +311,24 @@ export default function AnalyticsPage() {
   };
 
   const updateFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
-  const applyFilters = () => fetchAnalytics(filters);
+  const applyFilters = () => {
+    if (loggedInUser) fetchAnalytics(filters);
+  };
   const resetFilters = () => {
     setFilters(DEFAULT_FILTERS);
-    fetchAnalytics(DEFAULT_FILTERS);
+    if (loggedInUser) fetchAnalytics(DEFAULT_FILTERS);
   };
   const kpis = analytics?.kpis || {};
   const statuses = analytics?.charts?.statusBreakdown || [];
   const regions = analytics?.charts?.stateBreakdown || [];
   const categories = analytics?.charts?.categoryBreakdown || [];
+  const noRecords = Boolean(
+    analytics
+    && (analytics.kpis?.totalComplaints || 0) === 0
+  );
   const trend = (analytics?.charts?.monthlyTrend || []).map((item) => ({
     ...item,
-    label: new Date(`${item.label}-01T00:00:00`).toLocaleDateString("en-IN", { month: "short" }),
+    label: new Date(`${item.label}-01T00:00:00`).toLocaleDateString("en-IN", { month: "short", year: "2-digit" }),
   }));
 
   return (
@@ -333,31 +338,21 @@ export default function AnalyticsPage() {
           <div>
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)]">
               <span className="size-2 rounded-full bg-[#19a775]" />
-              Election operations · Live overview
+              Complaint records · Filterable summary
             </div>
             <h1 className="text-3xl font-semibold tracking-[-0.05em] text-[var(--text-primary)] sm:text-4xl">
               Analytics overview
             </h1>
             <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
-              A clear view of voter support, complaint resolution, and activity across regions.
+              Complaint counts and resolution patterns from records currently available to this account.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowFilters((visible) => !visible)}
-              aria-expanded={showFilters}
-              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-sm font-medium text-[var(--text-secondary)] transition hover:border-[#3975e8] hover:text-[#3975e8]"
-            >
-              <Filter size={15} />
-              Filters
-              {showFilters ? <X size={14} /> : null}
-            </button>
-            <button
-              type="button"
               onClick={exportCsv}
               disabled={!analytics}
-              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-sm font-medium text-[var(--text-secondary)] transition hover:border-[#3975e8] hover:text-[#3975e8] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-sm font-medium text-[var(--text-secondary)] transition hover:border-[var(--primary)] hover:text-[var(--primary-text)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Download size={15} />
               Export
@@ -365,30 +360,21 @@ export default function AnalyticsPage() {
             <button
               type="button"
               onClick={() => fetchAnalytics(filters)}
-              disabled={loading}
+              disabled={loading || authLoading || !loggedInUser}
               aria-label="Refresh analytics"
-              className="inline-flex size-10 items-center justify-center rounded-xl bg-[#3975e8] text-white transition hover:bg-[#285fc7] disabled:opacity-60"
+              className="inline-flex size-10 items-center justify-center rounded-lg bg-[var(--primary)] text-white transition hover:bg-[var(--primary-dark)] disabled:opacity-60"
             >
               <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
             </button>
           </div>
         </header>
 
-        {showFilters && (
-          <Panel className="mb-5 p-4 sm:p-5">
+        <Panel className="mb-5 p-4 sm:p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="font-semibold text-[var(--text-primary)]">Refine the overview</h2>
                 <p className="mt-1 text-xs text-[var(--text-muted)]">Choose a region, category, status, or date range.</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowFilters(false)}
-                aria-label="Close filters"
-                className="rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--muted-bg)]"
-              >
-                <X size={16} />
-              </button>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <FilterSelect
@@ -424,7 +410,7 @@ export default function AnalyticsPage() {
                   type="date"
                   value={filters.dateFrom}
                   onChange={(event) => updateFilter("dateFrom", event.target.value)}
-                  className="min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:border-[#3975e8]"
+                  className="min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
                 />
               </label>
               <label className="grid gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
@@ -433,39 +419,57 @@ export default function AnalyticsPage() {
                   type="date"
                   value={filters.dateTo}
                   onChange={(event) => updateFilter("dateTo", event.target.value)}
-                  className="min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:border-[#3975e8]"
+                  className="min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
                 />
               </label>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" onClick={applyFilters} className="rounded-xl bg-[#3975e8] px-4 py-2 text-sm font-medium text-white hover:bg-[#285fc7]">
+              <button type="button" onClick={applyFilters} disabled={!loggedInUser} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50">
                 Apply filters
               </button>
-              <button type="button" onClick={resetFilters} className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--muted-bg)]">
+              <button type="button" onClick={resetFilters} className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--muted-bg)]">
                 Reset
               </button>
             </div>
           </Panel>
-        )}
 
-        {error ? (
+        {authLoading ? (
+          <Panel className="px-6 py-10 text-center">
+            <p className="text-sm text-[var(--text-secondary)]">Checking your sign-in status…</p>
+          </Panel>
+        ) : !loggedInUser ? (
+          <Panel className="px-6 py-10 text-center">
+            <h2 className="font-semibold text-[var(--text-primary)]">Sign in to view analytics</h2>
+            <p className="mt-2 text-sm text-[var(--text-secondary)]">Use Login in the navigation to access complaint analytics.</p>
+          </Panel>
+        ) : loading && !analytics ? (
+          <Panel className="px-6 py-10 text-center">
+            <p className="text-sm text-[var(--text-secondary)]">Loading filtered complaint records…</p>
+          </Panel>
+        ) : error ? (
           <Panel className="flex flex-col items-center px-6 py-14 text-center">
             <span className="mb-3 flex size-11 items-center justify-center rounded-full bg-[#e56b8a]/10 text-[#e56b8a]">
               <Activity size={20} />
             </span>
             <h2 className="font-semibold text-[var(--text-primary)]">Analytics are unavailable</h2>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">{error}</p>
-            <button type="button" onClick={() => fetchAnalytics(filters)} className="mt-5 rounded-xl bg-[#3975e8] px-4 py-2 text-sm font-medium text-white">
+            <button type="button" onClick={() => fetchAnalytics(filters)} className="mt-5 rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--primary-dark)]">
               Try again
             </button>
           </Panel>
+        ) : noRecords ? (
+          <Panel className="px-6 py-12 text-center">
+            <h2 className="font-semibold text-[var(--text-primary)]">No analytics records are available</h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm text-[var(--text-secondary)]">
+              This database has no complaint or booth records yet. Counts will appear after approved data is loaded.
+            </p>
+          </Panel>
         ) : (
           <>
-            <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard icon={FileText} label="Total complaints" value={loading && !analytics ? "—" : (kpis.totalComplaints ?? 0).toLocaleString()} note="All received" color="#3975e8" />
+            <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <MetricCard icon={FileText} label="Total complaints" value={(kpis.totalComplaints ?? 0).toLocaleString()} note="Current filters" color="#c2410c" />
               <MetricCard icon={CheckCircle2} label="Resolved" value={loading && !analytics ? "—" : (kpis.resolvedCount ?? 0).toLocaleString()} note={`${kpis.resolutionRate ?? 0}% of total`} color="#19a775" />
               <MetricCard icon={Clock3} label="Awaiting action" value={loading && !analytics ? "—" : (kpis.pendingCount ?? 0).toLocaleString()} note={`${kpis.inProgressCount ?? 0} in progress`} color="#e88754" />
-              <MetricCard icon={MapPin} label="Polling booths" value={loading && !analytics ? "—" : (kpis.totalBooths ?? 0).toLocaleString()} note={`${(kpis.accessibleBooths ?? 0).toLocaleString()} accessible`} color="#9a7be7" />
             </div>
 
             <div className="mb-5 grid gap-5 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.85fr)]">
@@ -514,7 +518,7 @@ export default function AnalyticsPage() {
                     {regions.slice(0, 5).map((region, index) => (
                       <div key={region.label} className="flex items-center justify-between gap-3 py-3">
                         <span className="flex min-w-0 items-center gap-2.5 text-sm text-[var(--text-secondary)]">
-                          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[var(--muted-bg)] text-[11px] font-semibold text-[var(--text-muted)]">
+                          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[var(--muted-bg)] text-xs font-semibold text-[var(--text-muted)]">
                             {String(index + 1).padStart(2, "0")}
                           </span>
                           <span className="truncate">{region.label || "Unspecified"}</span>
@@ -527,39 +531,32 @@ export default function AnalyticsPage() {
                 )}
               </Panel>
 
-              <section className="relative isolate flex min-h-[240px] flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br from-[#315fc7] via-[#347de4] to-[#48a7c5] p-5 text-white shadow-sm sm:p-6">
-                <div className="absolute -right-12 -top-12 -z-10 size-48 rounded-full border border-white/15" />
-                <div className="absolute -right-2 -top-2 -z-10 size-28 rounded-full border border-white/15" />
-                <div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]">
-                    <Activity size={12} /> At a glance
-                  </span>
-                  <p className="mt-7 text-5xl font-semibold tracking-[-0.06em]">{kpis.resolutionRate ?? 0}%</p>
-                  <h2 className="mt-2 max-w-[220px] text-sm font-semibold leading-5">of reported complaints have been resolved</h2>
-                  <p className="mt-2 max-w-[250px] text-xs leading-5 text-white/75">
-                    {kpis.avgResolutionDays === "N/A" || kpis.avgResolutionDays == null
-                      ? "Resolution time will appear as cases are completed."
-                      : `Average time to resolution: ${kpis.avgResolutionDays} days.`}
-                  </p>
-                </div>
-                <div className="mt-6 flex items-center justify-between border-t border-white/20 pt-4 text-xs text-white/85">
-                  <span>Service progress</span>
-                  <span className="inline-flex items-center gap-1 font-semibold"><Check size={13} /> Tracked live</span>
-                </div>
-              </section>
+              <Panel className="min-h-[240px] p-5 sm:p-6">
+                <PanelTitle eyebrow="Resolution" title="Resolution progress" />
+                <p className="mt-8 text-5xl font-semibold text-[var(--text-primary)]">{kpis.resolutionRate ?? 0}%</p>
+                <p className="mt-2 text-sm text-[var(--text-secondary)]">of complaints in the selected filters are resolved</p>
+                <p className="mt-4 border-t border-[var(--border)] pt-4 text-sm text-[var(--text-secondary)]">
+                  {kpis.avgResolutionDays === "N/A" || kpis.avgResolutionDays == null
+                    ? "Average resolution time is not available."
+                    : `Average resolution time: ${kpis.avgResolutionDays} days.`}
+                </p>
+              </Panel>
             </div>
 
             <Panel className="overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 p-5 sm:px-6">
                 <PanelTitle eyebrow="Latest updates" title="Recent complaints" />
                 <span className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-                  <Users size={14} /> {analytics?.recentComplaints?.length || 0} records
+                  <Users size={14} />
+                  {loggedInUser.role === "admin"
+                    ? `${analytics?.recentComplaints?.length || 0} records`
+                    : "Admin access required"}
                 </span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[720px] border-collapse text-left text-sm">
                   <thead>
-                    <tr className="border-y border-[var(--border)] bg-[var(--muted-bg)]/70 text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
+                    <tr className="border-y border-[var(--border)] bg-[var(--muted-bg)]/70 text-xs uppercase text-[var(--text-muted)]">
                       <th className="px-5 py-3 font-semibold">Complaint</th>
                       <th className="px-5 py-3 font-semibold">Category</th>
                       <th className="px-5 py-3 font-semibold">Region</th>
@@ -571,8 +568,7 @@ export default function AnalyticsPage() {
                     {(analytics?.recentComplaints || []).map((complaint) => (
                       <tr key={complaint.complaintId} className="transition-colors hover:bg-[var(--muted-bg)]/60">
                         <td className="max-w-[300px] px-5 py-3.5">
-                          <p className="truncate font-medium text-[var(--text-primary)]">{complaint.subject || "Untitled complaint"}</p>
-                          <p className="mt-0.5 text-xs text-[var(--text-muted)]">{complaint.complaintId}</p>
+                          <p className="truncate font-medium text-[var(--text-primary)]">{complaint.complaintId}</p>
                         </td>
                         <td className="px-5 py-3.5 text-[var(--text-secondary)]">{complaint.category || "—"}</td>
                         <td className="px-5 py-3.5 text-[var(--text-secondary)]">{[complaint.district, complaint.state].filter(Boolean).join(", ") || "—"}</td>
@@ -593,15 +589,21 @@ export default function AnalyticsPage() {
                         </td>
                       </tr>
                     ))}
-                    {!analytics?.recentComplaints?.length && (
-                      <tr><td colSpan="5" className="px-5 py-10 text-center text-sm text-[var(--text-muted)]">No complaints to display for this selection.</td></tr>
-                    )}
+                    {loggedInUser.role !== "admin" ? (
+                      <tr><td colSpan="5" className="px-5 py-10 text-center text-sm text-[var(--text-secondary)]">Recent complaint details are restricted to admin accounts.</td></tr>
+                    ) : !analytics?.recentComplaints?.length ? (
+                      <tr><td colSpan="5" className="px-5 py-10 text-center text-sm text-[var(--text-secondary)]">No complaints to display for this selection.</td></tr>
+                    ) : null}
                   </tbody>
                 </table>
               </div>
               <div className="flex items-center justify-between gap-3 border-t border-[var(--border)] px-5 py-3.5 text-xs text-[var(--text-muted)] sm:px-6">
-                <span>Showing the latest {analytics?.recentComplaints?.length || 0} records</span>
-                <span className="inline-flex items-center gap-1 font-medium text-[#3975e8]">Updated from live data <ArrowRight size={13} /></span>
+                <span>{loggedInUser.role === "admin" ? `Showing ${analytics?.recentComplaints?.length || 0} recent records` : "Complaint details are admin-only"}</span>
+                <span>
+                  {lastUpdated
+                    ? `Updated ${lastUpdated.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}`
+                    : "Update time unavailable"}
+                </span>
               </div>
             </Panel>
           </>

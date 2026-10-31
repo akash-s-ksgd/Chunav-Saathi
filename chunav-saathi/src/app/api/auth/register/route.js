@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/mongodb";
 import { hashPassword, generateToken } from "@/lib/auth";
 import { rateLimit, getClientIp } from "@/lib/rateLimit";
-import { validatePassword } from "@/lib/validation";
+import { validateEpicNumber, validatePassword } from "@/lib/validation";
 
 export async function POST(req) {
   try {
@@ -21,6 +21,9 @@ export async function POST(req) {
     }
     if (!phone || !/^\d{10}$/.test(phone)) {
       errors.phone = "Valid 10-digit phone number required";
+    }
+    if (epicNumber && !validateEpicNumber(epicNumber)) {
+      errors.epicNumber = "EPIC must be 3 letters followed by 7 digits";
     }
     if (!validatePassword(password)) {
       errors.password = "Password must be at least 8 characters and include a letter and a number";

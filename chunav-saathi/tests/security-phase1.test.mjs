@@ -4,6 +4,15 @@ import { mock } from "node:test";
 
 const buildRequest = (url, headers = {}) => new Request(new URL(url, "http://localhost"), { headers });
 
+test("EPIC validation accepts three letters and seven digits only", async () => {
+  const { validateEpicNumber } = await import("../src/lib/validation.js");
+
+  assert.equal(validateEpicNumber("ABC1234567"), true);
+  assert.equal(validateEpicNumber("ABCD1234567"), false);
+  assert.equal(validateEpicNumber("ABC123456"), false);
+  assert.equal(validateEpicNumber("abc1234567"), true);
+});
+
 test("unauthenticated complaints list returns 401", async () => {
   const mongodb = await import("../src/lib/mongodb.js");
   const auth = await import("../src/lib/auth.js");

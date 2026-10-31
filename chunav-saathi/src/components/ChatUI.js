@@ -11,15 +11,13 @@ const WELCOME = {
   role: "assistant",
   parts: [{
     type: "text",
-    text: "Namaste! 🙏 I am Chunav Saathi — your AI election companion. I can answer questions about voting, help you find polling booths, and analyze complaint data. Try asking me about election statistics!",
+    text: "Namaste! Ask about available booth records or complaint counts.",
   }],
 };
 
 const QUICK_PROMPTS = [
-  "Find polling booths in Karnataka",
-  "Show complaint analytics",
-  "What is an EPIC card?",
-  "Election turnout data for Maharashtra",
+  "Belthangady polling booths?",
+  "Complaint counts by status in Karnataka?",
 ];
 
 function TypingDots() {
@@ -54,7 +52,7 @@ function Bubble({ msg }) {
         background: isBot ? "var(--surface)" : "var(--navy-light)",
         color: isBot ? "var(--text-primary)" : "#fff",
         border: isBot ? "1px solid var(--border)" : "none",
-        fontSize: "0.855rem", lineHeight: "1.65",
+        fontSize: "14px", lineHeight: "1.55",
         whiteSpace: "pre-wrap", wordBreak: "break-word",
       }}>
         {content}
@@ -64,7 +62,7 @@ function Bubble({ msg }) {
 }
 
 /* ── The actual chat panel ─────────────────────────────────────────── */
-export function ChatPanel({ onClose }) {
+export function ChatPanel({ onClose, compact = false }) {
   const { t } = useLanguage();
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
@@ -78,6 +76,7 @@ export function ChatPanel({ onClose }) {
   const isLoading = status === "streaming" || status === "submitted";
 
   useEffect(() => {
+    if (messages.length === 0 && !isLoading) return;
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
@@ -93,7 +92,7 @@ export function ChatPanel({ onClose }) {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--surface)", borderRadius: "inherit", overflow: "hidden" }}>
+    <div className={compact ? "chat-panel chat-panel-compact" : "chat-panel"}>
       {/* Header */}
       <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: "11px", background: "var(--surface)", flexShrink: 0 }}>
         <div style={{ width: "38px", height: "38px", borderRadius: "9px", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", flexShrink: 0 }}>
@@ -102,15 +101,16 @@ export function ChatPanel({ onClose }) {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--text-primary)" }}>{t.chatTitle}</div>
-          <div style={{ fontSize: "0.68rem", color: "var(--text-secondary)" }}>{t.chatSubtitle}</div>
+          <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{t.chatSubtitle}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div style={{ padding: "2px 8px", borderRadius: "4px", background: "var(--success-light)", border: "1px solid rgba(16, 185, 129, 0.2)", fontSize: "0.62rem", fontWeight: 700, color: "var(--success)", letterSpacing: "0.04em" }}>
+          <div style={{ padding: "2px 8px", borderRadius: "4px", background: "var(--success-light)", border: "1px solid rgba(16, 185, 129, 0.2)", fontSize: "12px", fontWeight: 700, color: "var(--success)" }}>
             CIVIC INFO
           </div>
           {onClose && (
             <button
               onClick={onClose}
+              aria-label="Close chat"
               style={{ width: "28px", height: "28px", borderRadius: "7px", border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
             >
               <X size={14} />
@@ -120,23 +120,19 @@ export function ChatPanel({ onClose }) {
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} id="chat-messages" style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: "13px", background: "var(--background)" }}>
+      <div ref={scrollRef} id="chat-messages" className="chat-messages">
         <Bubble msg={WELCOME} />
+        {messages.length === 0 && (
+          <div className="chat-suggestions" aria-label="Suggested questions">
+            {QUICK_PROMPTS.map((prompt) => (
+              <button key={prompt} type="button" onClick={() => fillPrompt(prompt)} className="chat-suggestion">
+                {prompt}
+              </button>
+            ))}
+          </div>
+        )}
         {messages.map(m => <Bubble key={m.id} msg={m} />)}
         {isLoading && <TypingDots />}
-      </div>
-
-      {/* Quick prompts */}
-      <div style={{ padding: "8px 14px 6px", display: "flex", gap: "5px", flexWrap: "wrap", borderTop: "1px solid var(--border)", background: "var(--surface)", flexShrink: 0 }}>
-        {QUICK_PROMPTS.map(p => (
-          <button
-            key={p}
-            onClick={() => fillPrompt(p)}
-            style={{ padding: "3px 10px", borderRadius: "5px", fontSize: "0.67rem", fontWeight: 500, border: "1px solid var(--border-strong)", background: "transparent", color: "var(--text-secondary)", cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit", whiteSpace: "nowrap" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.color = "var(--primary-dark)"; e.currentTarget.style.background = "var(--primary-light)"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-strong)"; e.currentTarget.style.color = "var(--text-secondary)"; e.currentTarget.style.background = "transparent"; }}
-          >{p}</button>
-        ))}
       </div>
 
       {/* Input */}
@@ -158,6 +154,7 @@ export function ChatPanel({ onClose }) {
         <button
           id="chat-send"
           type="submit"
+          aria-label={t.send}
           disabled={isLoading || !input?.trim()}
           style={{ width: "38px", height: "38px", borderRadius: "8px", border: "none", background: isLoading || !input?.trim() ? "var(--muted-bg)" : "var(--primary)", color: isLoading || !input?.trim() ? "var(--text-muted)" : "white", cursor: isLoading || !input?.trim() ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", flexShrink: 0 }}
         >
@@ -171,10 +168,10 @@ export function ChatPanel({ onClose }) {
 }
 
 /* ── Desktop sidebar wrapper ───────────────────────────────────────── */
-export function ChatSidebar() {
+export function ChatSidebar({ compact = false }) {
   return (
-    <div style={{ border: "1px solid var(--border)", borderRadius: "12px", boxShadow: "var(--shadow-sm)", overflow: "hidden", height: "100%", minHeight: "560px" }}>
-      <ChatPanel />
+    <div className={compact ? "chat-sidebar chat-sidebar-compact" : "chat-sidebar"}>
+      <ChatPanel compact={compact} />
     </div>
   );
 }

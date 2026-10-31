@@ -52,13 +52,9 @@ export function Navbar() {
     <>
       {/* ── Project notice ────────────────────────────────────────── */}
       <div
+        className="project-topbar"
         style={{
           background: "#1d4ed8",
-          padding: "5px 24px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          fontSize: "0.72rem",
           color: "rgba(255,255,255,0.85)",
           position: "fixed",
           top: 0,
@@ -67,15 +63,15 @@ export function Navbar() {
           zIndex: 101,
         }}
       >
-        <span className="hide-mobile">Independent student project · Not affiliated with ECI</span>
+        <span>Independent student project · Not affiliated with ECI</span>
         <span>Helpline: <strong style={{ color: "white" }}>1950</strong> · voters.eci.gov.in</span>
       </div>
 
       {/* ── Main navbar ────────────────────────────────────────────── */}
       <nav
+        className="main-navbar"
         style={{
           position: "fixed",
-          top: "28px",
           left: 0,
           right: 0,
           zIndex: 100,
@@ -86,15 +82,16 @@ export function Navbar() {
         }}
       >
         <div
+          className="navbar-inner"
           style={{
             maxWidth: "1280px",
             margin: "0 auto",
-            padding: "0 24px",
+            padding: "0 12px",
             height: "60px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: "16px",
+            gap: "8px",
           }}
         >
           {/* Logo */}
@@ -119,7 +116,7 @@ export function Navbar() {
               <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "var(--text-primary)", lineHeight: 1 }}>
                 {t.navTitle}
               </div>
-              <div className="hide-mobile" style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 500 }}>
+              <div className="hide-mobile" style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 500 }}>
                 {t.tagline}
               </div>
             </div>
@@ -135,7 +132,7 @@ export function Navbar() {
                   href={href}
                   style={{
                     display: "flex", alignItems: "center", gap: "5px",
-                    padding: "7px 12px", borderRadius: "7px",
+                    padding: "7px 8px", borderRadius: "7px",
                     fontSize: "0.8rem", fontWeight: isActive ? 700 : 500,
                     color: isActive ? "var(--primary)" : "var(--text-secondary)",
                     background: isActive ? "var(--primary-light)" : "transparent",
@@ -153,7 +150,7 @@ export function Navbar() {
           {/* Controls */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "nowrap" }}>
             {/* Language switcher */}
-            <div className="hide-mobile" style={{ display: "flex", gap: "2px", alignItems: "center" }}>
+            <div className="navbar-language-switcher hide-mobile" style={{ display: "flex", gap: "2px", alignItems: "center" }}>
               <Globe size={13} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
               {langOptions.map((option) => (
                 <button
@@ -161,9 +158,9 @@ export function Navbar() {
                   id={`lang-${option.code}`}
                   onClick={() => setLang(option.code)}
                   style={{
-                    padding: "4px 10px",
+                    padding: "4px 6px",
                     borderRadius: "6px",
-                    fontSize: "0.72rem",
+                    fontSize: "12px",
                     fontWeight: 600,
                     border: lang === option.code ? "1.5px solid var(--primary)" : "1.5px solid var(--border)",
                     cursor: "pointer",
@@ -231,7 +228,7 @@ export function Navbar() {
                     <span style={{
                       background: "var(--primary)", color: "white",
                       padding: "1px 6px", borderRadius: "4px",
-                      fontSize: "0.6rem", fontWeight: 700,
+                      fontSize: "12px", fontWeight: 700,
                     }}>
                       {t.admin}
                     </span>
@@ -241,6 +238,7 @@ export function Navbar() {
                   id="logout-btn"
                   onClick={logout}
                   title={t.navLogout}
+                  aria-label={t.navLogout}
                   style={{
                     width: "34px", height: "34px", borderRadius: "8px",
                     border: "1.5px solid var(--border)", background: "transparent",
@@ -256,17 +254,18 @@ export function Navbar() {
               <button
                 id="login-btn"
                 onClick={() => setShowLogin(true)}
+                aria-label={t.navLogin}
                 style={{
                   display: "flex", alignItems: "center", gap: "7px",
-                  padding: "8px 16px", borderRadius: "8px",
-                  border: "none", background: "#1d4ed8",
+                  padding: "8px 10px", borderRadius: "8px",
+                  border: "none", background: "var(--primary)",
                   color: "white", fontWeight: 600,
                   fontSize: "0.83rem", cursor: "pointer",
                   transition: "background 0.15s ease",
                   flexShrink: 0, fontFamily: "inherit",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#1e40af")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "#1d4ed8")}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--primary-dark)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--primary)")}
               >
                 <LogIn size={15} />
                 <span className="hide-mobile">{t.navLogin}</span>
@@ -278,6 +277,8 @@ export function Navbar() {
               id="mobile-menu-btn"
               className="hide-desktop"
               onClick={() => setMobileMenuState({ open: !mobileMenu, pathname })}
+              aria-label={mobileMenu ? "Close navigation menu" : "Open navigation menu"}
+              aria-expanded={mobileMenu}
               style={{
                 width: "34px", height: "34px", borderRadius: "8px",
                 border: "1.5px solid var(--border)", background: "transparent",

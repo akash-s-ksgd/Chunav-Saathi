@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { validatePassword } from "@/lib/validation";
+import { EPIC_NUMBER_PATTERN, validateEpicNumber, validatePassword } from "@/lib/validation";
 import {
   X, Phone, UserPlus, Eye, EyeOff,
   CheckCircle2, Loader2, ShieldCheck, AlertCircle, ChevronDown,
@@ -92,6 +92,7 @@ export function LoginModal({ onClose, onLoginSuccess }) {
     if (!regName || regName.trim().length < 2) errors.name = "Name must be at least 2 characters";
     if (!regPhone || !/^\d{10}$/.test(regPhone)) errors.phone = "Valid 10-digit phone number required";
     if (!validatePassword(regPassword)) errors.password = "Password must be at least 8 characters and include a letter and a number";
+    if (regEpic && !validateEpicNumber(regEpic)) errors.epicNumber = "EPIC must be 3 letters followed by 7 digits";
     if (regPassword !== regConfirmPassword) errors.confirmPassword = "Passwords do not match";
     if (!regState) errors.state = "State is required";
     if (!regDistrict) errors.district = "District is required";
@@ -451,13 +452,15 @@ export function LoginModal({ onClose, onLoginSuccess }) {
                 <input
                   id="reg-epic"
                   type="text"
-                  maxLength={15}
-                  placeholder="e.g. KAR1234567"
+                  maxLength={10}
+                  pattern={EPIC_NUMBER_PATTERN.source}
+                  placeholder="ABC1234567"
                   value={regEpic}
                   onChange={(e) => setRegEpic(e.target.value.toUpperCase())}
                   disabled={isLoading}
                   style={{ ...inputStyle(false), fontFamily: "monospace", letterSpacing: "0.06em" }}
                 />
+                {fieldErrors.epicNumber && <div style={errorStyle}>{fieldErrors.epicNumber}</div>}
               </div>
 
               <button

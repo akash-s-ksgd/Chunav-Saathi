@@ -5,16 +5,16 @@ import { useAuth } from "@/context/AuthContext";
 import { ElectionTimeline } from "@/components/ElectionTimeline";
 import { EciActionHub } from "@/components/EciActionHub";
 import { VoterDashboard } from "@/components/VoterDashboard";
-import { ChatSidebar, ChatFloating } from "@/components/ChatUI";
+import { ChatSidebar } from "@/components/ChatUI";
 import { KarnatakaToast } from "@/components/KarnatakaToast";
-import { Vote, Shield, Phone, BarChart3, LayoutDashboard, ArrowRight } from "lucide-react";
+import { Vote, Phone, BarChart3, LayoutDashboard, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 const stats = [
-  { value: "97 Cr+",  label: "Registered Voters",  id: "stat-voters" },
-  { value: "1950",    label: "Voter Helpline",       id: "stat-helpline" },
-  { value: "Form 6",  label: "New Registration",     id: "stat-form6" },
-  { value: "543",     label: "Lok Sabha Seats",       id: "stat-seats" },
+  { value: "—", label: "Registered electors" },
+  { value: "—", label: "Polling parts" },
+  { value: "—", label: "Recorded turnout" },
+  { value: "—", label: "Roll year" },
 ];
 
 export default function HomePage() {
@@ -47,47 +47,22 @@ export default function HomePage() {
             </svg>
           </div>
 
-          <div style={{ position: "relative", zIndex: 10, maxWidth: "1280px", margin: "0 auto", padding: "54px 20px 48px" }}>
-            <div className="section-label" style={{ marginBottom: "16px", background: "rgba(255,255,255,0.1)", color: "#f8fafc", border: "1px solid rgba(255,255,255,0.2)" }}>
-              <Shield size={12} />
-              Independent student project · Not affiliated with ECI
-            </div>
+          <div className="home-hero-grid">
+            <div>
+              <h1 className="home-hero-title">{t.heroTitle}</h1>
+              <p className="home-hero-copy">{t.heroSub}</p>
 
-            <h1 style={{
-              fontSize: "clamp(2rem, 4vw, 3.2rem)",
-              fontWeight: 900, lineHeight: 1.15, letterSpacing: "-0.02em",
-              color: "#ffffff", marginBottom: "16px", maxWidth: "720px",
-            }}>
-              {t.heroTitle}
-            </h1>
+              <div className="home-stat-grid" aria-label="Verified election data status">
+                {stats.map((stat) => (
+                  <div key={stat.label} className="home-stat-cell">
+                    <div className="stat-value">{stat.value}</div>
+                    <div className="stat-label">{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="home-stat-source">Source/year unavailable: no verified electoral dataset has been imported.</p>
 
-            <p style={{
-              fontSize: "clamp(0.95rem, 1.8vw, 1.1rem)",
-              color: "#cbd5e1", maxWidth: "600px",
-              lineHeight: 1.7, marginBottom: "38px",
-            }}>
-              {t.heroSub}
-            </p>
-
-            {/* Stats grid */}
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
-              gap: "1px", background: "rgba(255,255,255,0.15)",
-              border: "1px solid rgba(255,255,255,0.15)", borderRadius: "16px", /* rounded-2xl */
-              overflow: "hidden", maxWidth: "660px",
-              backdropFilter: "blur(8px)",
-            }}>
-              {stats.map(s => (
-                <div key={s.id} id={s.id} style={{ background: "var(--navy-light)", padding: "18px 20px", textAlign: "center" }}>
-                  <div className="stat-value" style={{ color: "var(--primary)" }}>{s.value}</div>
-                  <div className="stat-label" style={{ color: "#94a3b8" }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* CTAs */}
-            <div style={{ display: "flex", gap: "12px", marginTop: "28px", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: "12px", marginTop: "20px", flexWrap: "wrap" }}>
               {loggedInUser ? (
                 <>
                   <Link href="/dashboard" className="btn-primary" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
@@ -98,11 +73,14 @@ export default function HomePage() {
                   </Link>
                 </>
               ) : (
-                <div style={{ padding: "10px 20px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.08)", color: "#cbd5e1", fontSize: "0.85rem" }}>
-                  Login to access Dashboard, Analytics, and file Complaints
-                </div>
+                  <Link href="/analytics" className="btn-primary" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
+                    <BarChart3 size={16} /> Explore analytics <ArrowRight size={14} />
+                  </Link>
               )}
+              </div>
             </div>
+
+            <div className="home-hero-chat"><ChatSidebar compact /></div>
           </div>
         </section>
 
@@ -115,29 +93,9 @@ export default function HomePage() {
               padding: "28px 20px 64px",
             }}
           >
-            {/*
-              Mobile: flex column, Chat is first.
-              Desktop: flex row, Chat is left (60%), Dashboard is right (40%).
-            */}
-            <div
-              id="dashboard-grid"
-              className="flex flex-col md:flex-row gap-6 items-start"
-            >
-              {/* ── Left column: Chat Assistant (60% on desktop, 55vh on mobile) ── */}
-              <div
-                id="left-col"
-                className="w-full md:w-[60%] h-[55vh] md:h-[75vh] md:sticky md:top-[96px] order-1 flex flex-col"
-              >
-                <ChatSidebar />
-              </div>
-
-              {/* ── Right column: Voter Dashboard + Timeline + Cards (40% on desktop) ── */}
-              <div
-                id="right-col"
-                className="flex flex-col gap-6 w-full md:w-[40%] order-2"
-                style={{ minWidth: 0 }}
-              >
-                <VoterDashboard />
+            <div id="dashboard-grid" className="home-dashboard-grid">
+              <VoterDashboard />
+              <div className="flex min-w-0 flex-col gap-6">
                 <ElectionTimeline />
                 <EciActionHub />
               </div>
@@ -152,11 +110,11 @@ export default function HomePage() {
             display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <div style={{ width: "26px", height: "26px", borderRadius: "6px", background: "#1d4ed8", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: "26px", height: "26px", borderRadius: "6px", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Vote size={13} color="white" />
               </div>
               <span style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--text-primary)" }}>Chunav Saathi</span>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.78rem" }}>· Groq AI · Independent civic information</span>
+              <span className="home-footer-disclaimer">Independent student project · Not affiliated with ECI</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.78rem", color: "var(--text-secondary)" }}>
               <Phone size={12} />
