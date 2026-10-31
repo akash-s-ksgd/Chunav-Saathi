@@ -1,6 +1,7 @@
 import { groq } from "@ai-sdk/groq";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 import { getDb } from "@/lib/mongodb";
+import { getClientIp, rateLimit } from "@/lib/rateLimit";
 
 // Using Node.js runtime for MongoDB compatibility
 export const maxDuration = 30;
@@ -14,6 +15,7 @@ CAPABILITIES:
 4. Guide citizens on election procedures, voter helpline (1950), and ECI services.
 
 CRITICAL RULES:
+- Chunav Saathi is an independent student project, not the Election Commission of India. Do not claim to represent or speak for ECI.
 - You must refuse to answer any questions unrelated to Indian elections, politics, voting, or the Chunav Saathi platform.
 - If asked about programming, cooking, pop culture, or other unrelated topics, reply: "I am Chunav Saathi, your dedicated election companion. I can only assist you with voting processes, polling data, and constituency details. Please ask an election-related question."
 - When data context is provided below, use it to give specific, data-backed answers.
@@ -24,7 +26,12 @@ CRITICAL RULES:
 
 // Extract potential data queries from user messages
 function detectDataIntent(messages) {
-  const lastMsg = messages[messages.length - 1]?.content?.toLowerCase() || "";
+  const lastMessage = messages[messages.length - 1];
+  const lastMsg = (lastMessage?.parts || [])
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join(" ")
+    .toLowerCase();
   const intents = {
     boothSearch: false,
     analytics: false,
@@ -39,12 +46,12 @@ function detectDataIntent(messages) {
   }
 
   // Analytics-related keywords
-  if (/analytics|statistics|stats|data|chart|graph|trend|insight|analysis|how many|total|count|number of/i.test(lastMsg)) {
+  if (/analytics|statistics|stats|chart|graph|trend|insight|analysis|resolution rate|complaint breakdown/i.test(lastMsg)) {
     intents.analytics = true;
   }
 
   // Complaint-related keywords
-  if (/complaint|grievance|issue|problem|report|resolve|pending|status/i.test(lastMsg)) {
+  if (/complaint|grievance|issue|problem|report|resolve|pending|in progress|rejected/i.test(lastMsg)) {
     intents.complaintStats = true;
   }
 
@@ -71,6 +78,10 @@ function detectDataIntent(messages) {
 
 // Fetch relevant data context from MongoDB
 async function getDataContext(intents) {
+  if (!intents.boothSearch && !intents.analytics && !intents.complaintStats && !intents.electionData) {
+    return "";
+  }
+
   let context = "";
 
   try {
@@ -202,7 +213,42 @@ async function getDataContext(intents) {
 }
 
 export async function POST(req) {
-  const { messages } = await req.json();
+  const ip = getClientIp(req);
+  const limitResult = rateLimit({ key: `chat:${ip}`, limit: 20, windowMs: 60 * 1000 });
+  if (!limitResult.allowed) {
+    return Response.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+  }
+
+  let messages;
+  try {
+    ({ messages } = await req.json());
+  } catch {
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  if (!Array.isArray(messages) || messages.length === 0 || messages.length > 20) {
+    return Response.json({ error: "Invalid conversation history" }, { status: 400 });
+  }
+
+  const validMessages = messages.every((message) =>
+    message
+    && (message.role === "user" || message.role === "assistant")
+    && Array.isArray(message.parts)
+    && message.parts.every((part) =>
+      part?.type === "text"
+      && typeof part.text === "string"
+      && part.text.length <= 1000
+    )
+  );
+  if (!validMessages) {
+    return Response.json({ error: "Messages must contain text parts of at most 1000 characters." }, { status: 400 });
+  }
+
+  const lastMessage = messages[messages.length - 1];
+  const userText = lastMessage.parts.map((part) => part.text).join(" ").trim();
+  if (lastMessage.role !== "user" || userText.length === 0) {
+    return Response.json({ error: "Invalid message" }, { status: 400 });
+  }
 
   // Detect data intent from conversation
   const intents = detectDataIntent(messages);
@@ -211,13 +257,22 @@ export async function POST(req) {
   const dataContext = await getDataContext(intents);
 
   // Build enhanced system prompt with data context
-  const enhancedPrompt = BASE_SYSTEM_PROMPT + dataContext;
+  const dataRules = dataContext
+    ? "\n\nDATA ANSWERING RULES:\n- State the database collection or dataset that supports each data-backed answer, including its year or revision when available.\n- If the requested fact is not present in the supplied context, say: \"I don't have that data.\" Do not estimate or invent counts, turnout, or other figures.\n"
+    : "";
 
-  const result = await streamText({
-    model: groq("llama-3.3-70b-versatile"),
-    system: enhancedPrompt,
-    messages,
-  });
+  try {
+    const result = await streamText({
+      model: groq("llama-3.3-70b-versatile"),
+      system: `${BASE_SYSTEM_PROMPT}${dataContext}${dataRules}`,
+      messages: await convertToModelMessages(messages),
+    });
 
-  return result.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse();
+  } catch {
+    return Response.json(
+      { error: "The election assistant is temporarily unavailable. Please try again." },
+      { status: 503 }
+    );
+  }
 }

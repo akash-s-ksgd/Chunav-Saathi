@@ -1,6 +1,7 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import { useLanguage } from "@/context/LanguageContext";
 import { Send, Bot, User, MessageSquare, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -8,8 +9,10 @@ import { useEffect, useRef, useState } from "react";
 const WELCOME = {
   id: "welcome",
   role: "assistant",
-  content:
-    "Namaste! 🙏 I am Chunav Saathi — your AI election companion. I can answer questions about voting, help you find polling booths, and analyze complaint data. Try asking me about election statistics!",
+  parts: [{
+    type: "text",
+    text: "Namaste! 🙏 I am Chunav Saathi — your AI election companion. I can answer questions about voting, help you find polling booths, and analyze complaint data. Try asking me about election statistics!",
+  }],
 };
 
 const QUICK_PROMPTS = [
@@ -36,6 +39,10 @@ function TypingDots() {
 
 function Bubble({ msg }) {
   const isBot = msg.role === "assistant";
+  const content = (msg.parts || [])
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("");
   return (
     <div className="fade-in-up" style={{ display: "flex", gap: "9px", alignItems: "flex-end", flexDirection: isBot ? "row" : "row-reverse" }}>
       <div style={{ width: "29px", height: "29px", minWidth: "29px", borderRadius: "50%", background: isBot ? "var(--primary)" : "var(--navy-light)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -50,7 +57,7 @@ function Bubble({ msg }) {
         fontSize: "0.855rem", lineHeight: "1.65",
         whiteSpace: "pre-wrap", wordBreak: "break-word",
       }}>
-        {msg.content}
+        {content}
       </div>
     </div>
   );
@@ -65,8 +72,7 @@ export function ChatPanel({ onClose }) {
   const [input, setInput] = useState("");
 
   const { messages, sendMessage, status } = useChat({
-    api: "/api/chat",
-    initialMessages: [WELCOME],
+    transport: new DefaultChatTransport({ api: "/api/chat" }),
   });
 
   const isLoading = status === "streaming" || status === "submitted";
@@ -82,7 +88,7 @@ export function ChatPanel({ onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
-    sendMessage({ content: input, role: "user" });
+    sendMessage({ text: input });
     setInput("");
   };
 
@@ -100,7 +106,7 @@ export function ChatPanel({ onClose }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <div style={{ padding: "2px 8px", borderRadius: "4px", background: "var(--success-light)", border: "1px solid rgba(16, 185, 129, 0.2)", fontSize: "0.62rem", fontWeight: 700, color: "var(--success)", letterSpacing: "0.04em" }}>
-            ECI GUIDED
+            CIVIC INFO
           </div>
           {onClose && (
             <button
@@ -115,6 +121,7 @@ export function ChatPanel({ onClose }) {
 
       {/* Messages */}
       <div ref={scrollRef} id="chat-messages" style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: "13px", background: "var(--background)" }}>
+        <Bubble msg={WELCOME} />
         {messages.map(m => <Bubble key={m.id} msg={m} />)}
         {isLoading && <TypingDots />}
       </div>

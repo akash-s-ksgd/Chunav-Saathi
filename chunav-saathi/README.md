@@ -55,3 +55,13 @@ Embedded an intelligent AI Assistant (Chunav Saathi) powered by **Groq (LLaMA-3)
    npm run dev
    ```
    Access the platform at `http://localhost:3000`.
+
+## Example Chat Questions
+
+After the relevant data has been loaded, try:
+
+- "How many complaints are pending in Karnataka?"
+- "Show the complaint resolution trend for Karnataka."
+- "What turnout is recorded for Maharashtra, and which dataset/year is it from?"
+
+Answers depend on the records currently available in MongoDB. The assistant should identify its source and say when a requested figure is unavailable; demo seed data is synthetic and is not an official election result.
